@@ -1,0 +1,6 @@
+apache-airflow
+pandas
+scikit-learn
+pyspark
+great-expectations
+boto3

@@ -205,3 +205,12 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+.env
+logs/
+data/
+venv/
+__pycache__/
+*.py[cod]
+.vscode/
+spark-warehouse/
+derby.log
