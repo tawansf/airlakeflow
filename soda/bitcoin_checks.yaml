@@ -1,0 +1,7 @@
+checks for bitcoin:
+  - row_count > 0
+  - min(usd) > 0
+  - max(usd) < 200000
+  - schema:
+    name: processed_at
+    type: string

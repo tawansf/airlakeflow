@@ -2,5 +2,7 @@ apache-airflow
 pandas
 scikit-learn
 pyspark
-great-expectations
 boto3
+soda-core-spark
+soda-core-spark-df
+python-dotenv
