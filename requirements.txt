@@ -6,3 +6,5 @@ boto3
 soda-core-spark
 soda-core-spark-df
 python-dotenv
+soda-core
+soda-core-postgres

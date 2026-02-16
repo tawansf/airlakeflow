@@ -12,7 +12,7 @@ load_dotenv()
 GEEKO_URL_API = os.getenv("GEEKO_URL_API")
 BRONZE_PATH = f'{os.getenv("BRONZE_PATH")}/crypto'
 
-def bronze_ingestao_dados_bitcoin():
+def bronze_ingestion_data_bitcoin():
     url = GEEKO_URL_API
     response = requests.get(url)
 
@@ -36,15 +36,15 @@ def bronze_ingestao_dados_bitcoin():
         raise Exception(f"Erro ao obter dados do Bitcoin: {response.status_code}")
 
 with DAG(
-    dag_id="01_bronze_ingestao_dados_bitcoin",
+    dag_id="01_bronze_ingestion_data_bitcoin",
     start_date=datetime(2026, 2, 10),
     schedule_interval=None,
     catchup=False,
-    tags=['bronze', 'crypto']
+    tags=['bronze', 'crypto', 'ingestion']
 ) as dag:
-    ingestao_dados_bitcoin = PythonOperator(
-        task_id='bronze_ingestao_dados_bitcoin',
-        python_callable=bronze_ingestao_dados_bitcoin
+    ingestion_data_bitcoin = PythonOperator(
+        task_id='bronze_ingestion_data_bitcoin',
+        python_callable=bronze_ingestion_data_bitcoin
     )
 
-    ingestao_dados_bitcoin
+    ingestion_data_bitcoin

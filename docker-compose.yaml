@@ -17,6 +17,7 @@ x-airflow-common:
     - ./plugins:/opt/airflow/plugins
     - ./config:/opt/airflow/config
     - ./data:/opt/airflow/data
+    - ./soda:/opt/airflow/soda
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
