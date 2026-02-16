@@ -57,7 +57,9 @@ Before the pipeline completes, Soda Core scans the transformed data against defi
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/tawansf/data-engineering.git
+    or 
+    git clone git@github.com:tawansf/data-engineering.git
     ```
 
 2.  **Environment Configuration:**
