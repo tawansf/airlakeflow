@@ -89,7 +89,7 @@ To adapt this framework to your specific use case:
 
 ## Maintainer
 
-**[Tawan Silva]** *Senior Software Developer & Data Engineering Enthusiast*
+**Tawan Silva** *Senior Software Developer & Data Engineering Enthusiast*
 
 This project is maintained by Tawan Silva as part of a continuous study on high-performance data architectures.
 
