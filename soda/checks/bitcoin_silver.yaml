@@ -1,13 +1,13 @@
 checks for silver.bitcoin:
   - row_count > 0:
-      name: Tabela nao vazia
+      name: Table is not empty
 
   - min(price) > 0:
-      name: Preco positivo
+      name: Price is positive and greater than zero
 
   - freshness(updated_at) < 72h:
-      name: Dados recentes
+      name: Recent data
 
   - row_count = 0:
-      name: Apenas moeda USD permitida
+      name: No non-USD data
       filter: currency != 'usd'
