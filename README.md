@@ -22,11 +22,12 @@ The pipeline follows the Medallion Architecture pattern (Bronze, Silver, Gold la
 
 ## Repository Structure
 
-* `dags/`: Contains the Airflow DAG definitions. Designed to be modular, separating ingestion logic from transformation logic.
-* `soda/`: Configuration files and YAML-based data quality checks. This structure allows for defining rules without altering the pipeline code.
-* `plugins/`: Stores necessary JDBC drivers (e.g., PostgreSQL) and custom Airflow plugins to enable connectivity between Spark and the Data Warehouse.
-* `docker-compose.yaml`: Defines the multi-container environment, including Airflow services, the metadata database, and the processing execution environment.
-* `Dockerfile`: Custom image definition that extends the official Airflow image to include Java (OpenJDK) and Spark dependencies.
+* `dags/`: Airflow DAG definitions. One **domain** (e.g. crypto, vendas) = one subfolder with `bronze.py`, `silver.py`, `gold.py`, optional `transformations/`, and a `pipeline.py` for the full flow.
+* `dags/sql/migrations/`: **Schema migrations** (versioned). Create tables/schemas for Bronze, Silver, and Gold. Run by the DAG `00_setup_database_migrations`. Naming: `V001__description.sql`, `V002__…`, etc.
+* `scripts/`: **Infra scripts only** (e.g. Postgres init). Not schema migrations. Example: `01-init-datawarehouse.sql` runs once when the Postgres container starts and creates the `datawarehouse` database.
+* `soda/`: Soda Core config and **data quality checks** (YAML). One file per table or layer (e.g. `bitcoin_bronze.yaml`, `bitcoin_silver.yaml`).
+* `plugins/`: JDBC drivers (e.g. PostgreSQL) and custom Airflow plugins.
+* `docker-compose.yaml`, `Dockerfile`: Multi-container environment (Airflow, Postgres, Redis, etc.).
 
 ## Pipeline Workflow
 
@@ -63,7 +64,7 @@ Before the pipeline completes, Soda Core scans the transformed data against defi
     ```
 
 2.  **Environment Configuration:**
-    Create a `.env` file in the root directory to manage sensitive credentials (database users, passwords, and API keys).
+    Copy `.env.example` to `.env` and fill in the values. The file manages API URLs, paths, and (optionally) credentials for the pipeline and Soda.
 
 3.  **Build the Infrastructure:**
     Since this project uses a custom Docker image to support Java/Spark within Airflow, a build step is required:
@@ -78,14 +79,69 @@ Before the pipeline completes, Soda Core scans the transformed data against defi
     ```
 
 5.  **Access the Orchestrator:**
-    Navigate to `http://localhost:8080` to access the Airflow UI and trigger the DAGs.
+    Navigate to `http://localhost:8080` to access the Airflow UI and trigger the DAGs. The **crypto_pipeline** DAG runs the full flow (Bronze → Quality Bronze → Silver → Quality Silver → Gold) on an hourly schedule. The DAGs `01_bronze_*`, `02_silver_*`, `03_silver_quality_*`, and `04_gold_*` can be run individually for ad-hoc use. Run **00_setup_database_migrations** once (or after adding new migrations) to create schemas and tables, including `gold.bitcoin_daily`.
+
+6.  **Configure the Data Warehouse connection (required for pipeline DAGs):**
+    The database `datawarehouse` is created automatically on the first `docker compose up` (via `scripts/01-init-datawarehouse.sql`). If the Postgres volume already existed before adding this script, create the database manually: `docker compose exec postgres psql -U airflow -d airflow -c "CREATE DATABASE datawarehouse;"`.
+
+    In the Airflow UI, add the connection used by the Bronze/Silver pipeline:
+    * Go to **Admin** → **Connections** → **+** (Add a new record).
+    * Set **Connection Id:** `postgres_datawarehouse`
+    * **Connection Type:** Postgres
+    * **Host:** `postgres`
+    * **Schema:** `datawarehouse` (this is the database name for the connection)
+    * **Login:** `airflow`
+    * **Password:** `airflow`
+    * **Port:** `5432`
+    * Save.
+
+## Runbook (operação)
+
+* **Ingestão Bronze falha (API ou timeout):** Verifique logs da task `bronze_ingestion_data_bitcoin`. Confirme `GEEKO_URL_API` no `.env` e conectividade. O DAG faz 2 retries com 1 minuto de intervalo; se persistir, revise rate limit da API ou aumente `API_TIMEOUT_SECONDS` / `API_MAX_RETRIES`.
+* **Soda falha (quality):** Abra o log da task `soda_scan_silver_bitcoin` ou `soda_scan_bronze_bitcoin` e veja qual check falhou (Soda imprime o nome). Ajuste os arquivos em `soda/checks/` ou os dados na tabela. Para credenciais do Soda, edite `soda/configuration.yaml` ou use variáveis de ambiente em produção.
+* **Re-rodar apenas Silver (ou Gold):** No Airflow, use o DAG `02_silver_transformation_data_bitcoin` ou `04_gold_aggregate_bitcoin_daily` e dispare uma run manual. Para re-processar apenas uma data, seria necessário um parâmetro ou DAG com conf (não implementado por padrão).
+* **Onde ver logs:** Airflow UI → DAG run → task → “Log”. Logs do scheduler/worker também em `logs/` no projeto.
+
+## Adding a new pipeline (new domain)
+
+You can reuse this structure for any new data source (APIs, files, streams). Follow the same pattern: **one domain = one folder under `dags/`**, with Bronze → Silver → Gold and quality checks.
+
+### Step-by-step
+
+1. **Create the domain folder**  
+   Example: `dags/vendas/` (or `dags/iot/`, etc.).
+
+2. **Bronze (ingestion)**  
+   Add a DAG file (e.g. `bronze.py`) that reads from your source (API, file, etc.) and writes **raw** data to Postgres (e.g. `bronze.vendas_raw` with a `payload` JSONB column). Reuse the same connection `postgres_datawarehouse`. Optionally add retries and timeout like in `crypto/bronze.py`.
+
+3. **Migrations**  
+   In `dags/sql/migrations/`, add a new version (e.g. `V004__setup_bronze_vendas.sql`) that creates the Bronze table (and Silver/Gold tables if needed). In `dags/setup_database.py`, add a new `PostgresOperator` task pointing to that file and chain it to the existing migrations (e.g. `migration_003 >> migration_004`). Run **00_setup_database_migrations** once after adding the file.
+
+4. **Silver (transformation)**  
+   Add a transformation that reads from the new Bronze table, cleans/normalizes, and writes to a Silver table. You can put the Spark (or SQL) logic in `dags/<domain>/transformations/` and call it from a `silver.py` DAG, following the `crypto` example.
+
+5. **Gold (aggregation)**  
+   If needed, add a Gold table and a task that aggregates from Silver (e.g. daily rollups). See `crypto/gold.py` and `V003__setup_gold.sql`.
+
+6. **Quality (Soda)**  
+   In `soda/checks/`, add YAML files for the new tables (e.g. `vendas_bronze.yaml`, `vendas_silver.yaml`) with checks (row count, freshness, nulls, business rules). Add BashOperator tasks in your pipeline to run `soda scan` on those files.
+
+7. **Unified pipeline DAG**  
+   Create a `pipeline.py` (or equivalent) that chains: ingestion → quality_bronze → transformation → quality_silver → gold_aggregate. Set `schedule_interval` and `default_args` (retries, retry_delay) as in `crypto/pipeline.py`.
+
+### Conventions
+
+* **Migrations:** Always in `dags/sql/migrations/`, named `V00X__short_description.sql`. Run via `00_setup_database_migrations`.
+* **Scripts vs migrations:** Use `scripts/` only for infra (e.g. creating a database at container init). Use `sql/migrations/` for all schema changes (tables, indexes).
+* **Config:** Prefer environment variables (e.g. in `.env`) for URLs and paths. For many domains, use prefixed vars (e.g. `CRYPTO_API_URL`, `VENDAS_API_URL`) to keep config clear.
+* **Other sources:** The same Medallion flow applies to CSV, Parquet, streams, etc.: ingest raw into Bronze, transform into Silver, aggregate into Gold, and add Soda checks per layer.
 
 ## Customization
 
 To adapt this framework to your specific use case:
-1.  Modify the extraction logic in the `dags/` folder to point to your specific data source.
-2.  Update the Spark transformation scripts to reflect your target schema.
-3.  Edit the `soda/checks/` YAML files to define quality rules relevant to your dataset.
+1.  Point the extraction logic in your domain folder to your data source (API, file, stream).
+2.  Adjust the Spark (or SQL) transformation to match your target schema.
+3.  Define quality rules in `soda/checks/` for each new table or layer.
 
 ## Maintainer
 

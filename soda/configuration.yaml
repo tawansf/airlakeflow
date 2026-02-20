@@ -1,3 +1,5 @@
+# Connection to the data warehouse for Soda scans.
+# In production, prefer environment variables or secrets (e.g. SODA_POSTGRES_PASSWORD).
 data_source postgres_datawarehouse:
   type: postgres
   connection:
