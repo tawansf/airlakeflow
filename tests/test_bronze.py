@@ -68,7 +68,7 @@ def test_bronze_ingestion_success():
         mock_hook.return_value.run.return_value = None
         bronze_ingestion_data_bitcoin()
     mock_hook.return_value.run.assert_called_once()
-    call_args = mock_hook.return_value.run.call_args
+    call_args = mock_hook.return_value.run.call_args  # type: ignore[attr-defined]
     assert "INSERT INTO bronze.bitcoin_raw" in call_args[0][0]
     assert call_args[1]["parameters"]
     loaded = json.loads(call_args[1]["parameters"][0])
