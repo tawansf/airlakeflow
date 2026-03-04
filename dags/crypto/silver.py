@@ -1,7 +1,3 @@
-"""
-DAG and task for Silver to Bitcoin transformation.
-Delegates logic to crypto.transformations.bitcoin module.
-"""
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta

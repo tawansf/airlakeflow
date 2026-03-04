@@ -1,4 +1,3 @@
--- Gold layer: aggregations and marts for consumption.
 CREATE TABLE IF NOT EXISTS gold.bitcoin_daily (
     id SERIAL PRIMARY KEY,
     date DATE NOT NULL,

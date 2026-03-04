@@ -1,11 +1,9 @@
-"""Unit tests for Bronze ingestion (API and Postgres)."""
 import json
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 
-# Patch time.sleep to avoid delaying tests
 @pytest.fixture(autouse=True)
 def no_sleep():
     with patch("crypto.bronze.time.sleep"):
@@ -54,7 +52,7 @@ def test_bronze_ingestion_missing_url():
     from crypto.bronze import bronze_ingestion_data_bitcoin
 
     with patch.object(bronze_mod, "GEEKO_URL_API", None):
-        with pytest.raises(ValueError, match="GEEKO_URL_API not configured"):
+        with pytest.raises(ValueError, match="GEEKO_URL_API não configurada"):
             bronze_ingestion_data_bitcoin()
 
 
@@ -68,7 +66,7 @@ def test_bronze_ingestion_success():
         mock_hook.return_value.run.return_value = None
         bronze_ingestion_data_bitcoin()
     mock_hook.return_value.run.assert_called_once()
-    call_args = mock_hook.return_value.run.call_args  # type: ignore[attr-defined]
+    call_args = mock_hook.return_value.run.call_args
     assert "INSERT INTO bronze.bitcoin_raw" in call_args[0][0]
     assert call_args[1]["parameters"]
     loaded = json.loads(call_args[1]["parameters"][0])

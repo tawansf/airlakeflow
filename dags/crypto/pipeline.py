@@ -1,7 +1,3 @@
-"""
-DAG unified crypto pipeline: Bronze → Silver → Quality → Gold.
-Scheduled to run hourly; tasks with retry in case of transient failure.
-"""
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from airflow.operators.bash import BashOperator

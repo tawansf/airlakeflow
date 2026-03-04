@@ -20,7 +20,6 @@ API_BACKOFF_BASE_SECONDS = float(os.getenv("API_BACKOFF_BASE_SECONDS", "1.0"))
 
 
 def _fetch_bitcoin_data(url: str, timeout: int, max_retries: int, backoff_base: float) -> dict:
-    """Obtém dados da API com retry e backoff exponencial. Levanta exceção em falha."""
     last_error = None
     for attempt in range(1, max_retries + 1):
         try:
@@ -47,7 +46,6 @@ def _fetch_bitcoin_data(url: str, timeout: int, max_retries: int, backoff_base: 
 
 
 def bronze_ingestion_data_bitcoin():
-    """Ingere dados brutos do Bitcoin (API CoinGecko) na camada Bronze (Postgres)."""
     if not GEEKO_URL_API:
         raise ValueError("GEEKO_URL_API não configurada (variável de ambiente ausente).")
 

@@ -1,7 +1,3 @@
-"""
-Silver to Gold aggregation: bitcoin_daily.
-Populates gold.bitcoin_daily from silver.bitcoin (aggregation by day).
-"""
 import logging
 from datetime import datetime, timedelta
 from airflow import DAG
@@ -30,7 +26,6 @@ ON CONFLICT (date, crypto_id) DO UPDATE SET
 
 
 def gold_aggregate_bitcoin_daily():
-    """Updates the gold.bitcoin_daily table from silver.bitcoin."""
     pg_hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
     pg_hook.run(UPSERT_GOLD_BITCOIN_DAILY)
     logger.info("Gold bitcoin_daily aggregation completed.")

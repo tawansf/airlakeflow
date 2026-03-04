@@ -1,7 +1,3 @@
-"""
-Bronze to Silver transformation for Bitcoin (PySpark).
-Reads from bronze.bitcoin_raw, normalizes and writes to silver.bitcoin.
-"""
 import logging
 import os
 from airflow.hooks.base import BaseHook
@@ -10,9 +6,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_jdbc_url_and_properties(conn_id: str = "postgres_datawarehouse"):
-    """Builds JDBC URL and properties from Airflow connection.
-    Uses DATAWAREHOUSE_DB variable for the database name (to avoid confusion with conn.schema).
-    """
     conn = BaseHook.get_connection(conn_id)
     database = os.getenv("DATAWAREHOUSE_DB", "datawarehouse")
     jdbc_url = f"jdbc:postgresql://{conn.host}:{conn.port}/{database}"
@@ -29,7 +22,6 @@ def run_silver_bitcoin_transformation(
     jdbc_url: str,
     db_properties: dict,
 ) -> None:
-    """Executes the Bronze → Silver transformation for Bitcoin (Spark)."""
     from pyspark.sql import SparkSession
     from pyspark.sql.functions import (
         col,

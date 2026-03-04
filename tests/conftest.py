@@ -1,4 +1,3 @@
-"""Configuration for pytest: adds the dags directory to the path for imports."""
 import sys
 from pathlib import Path
 

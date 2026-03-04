@@ -1,4 +1,3 @@
-# Quality contracts for bronze.bitcoin_raw (raw API data).
 checks for bronze.bitcoin_raw:
   - missing_count(payload) = 0:
       name: Payload is never null
