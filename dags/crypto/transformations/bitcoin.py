@@ -25,6 +25,7 @@ def run_silver_bitcoin_transformation(
     from pyspark.sql import SparkSession
     from pyspark.sql.functions import (
         col,
+        coalesce,
         current_timestamp,
         from_unixtime,
         get_json_object,
@@ -58,10 +59,13 @@ def run_silver_bitcoin_transformation(
             get_json_object(col("payload"), "$.bitcoin.usd")
             .cast(DecimalType(18, 8))
             .alias("price"),
-            to_timestamp(
-                from_unixtime(
-                    get_json_object(col("payload"), "$.bitcoin.last_updated_at")
-                )
+            coalesce(
+                to_timestamp(
+                    from_unixtime(
+                        get_json_object(col("payload"), "$.bitcoin.last_updated_at")
+                    )
+                ),
+                current_timestamp(),
             ).alias("updated_at"),
             current_timestamp().alias("created_at"),
             col("payload").alias("metadata"),

@@ -1,6 +1,5 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.operators.bash import BashOperator
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
@@ -8,10 +7,31 @@ from dotenv import load_dotenv
 from crypto.bronze import bronze_ingestion_data_bitcoin
 from crypto.silver import silver_transformation_data_bitcoin
 from crypto.gold import gold_aggregate_bitcoin_daily
+from monitoring.soda_persistence import run_soda_scan_and_persist
 
 load_dotenv()
 
 SODA_PATH = os.getenv("SODA_PATH", "/opt/airflow/soda")
+
+
+def _soda_scan_bronze(**context):
+    run_soda_scan_and_persist(
+        data_source="postgres_datawarehouse",
+        config_path=f"{SODA_PATH}/configuration.yaml",
+        contract_path=f"{SODA_PATH}/contracts/bitcoin_bronze.yaml",
+        dag_id=context["dag"].dag_id,
+        task_id=context["task"].task_id,
+    )
+
+
+def _soda_scan_silver(**context):
+    run_soda_scan_and_persist(
+        data_source="postgres_datawarehouse",
+        config_path=f"{SODA_PATH}/configuration.yaml",
+        contract_path=f"{SODA_PATH}/contracts/bitcoin_silver.yaml",
+        dag_id=context["dag"].dag_id,
+        task_id=context["task"].task_id,
+    )
 
 default_args = {
     "retries": 2,
@@ -37,22 +57,14 @@ with DAG(
         python_callable=silver_transformation_data_bitcoin,
     )
 
-    quality_bronze = BashOperator(
+    quality_bronze = PythonOperator(
         task_id="soda_scan_bronze_bitcoin",
-        bash_command=f"""
-        soda scan -d postgres_datawarehouse \
-                  -c {SODA_PATH}/configuration.yaml \
-                  {SODA_PATH}/checks/bitcoin_bronze.yaml
-        """,
+        python_callable=_soda_scan_bronze,
     )
 
-    quality_silver = BashOperator(
+    quality_silver = PythonOperator(
         task_id="soda_scan_silver_bitcoin",
-        bash_command=f"""
-        soda scan -d postgres_datawarehouse \
-                  -c {SODA_PATH}/configuration.yaml \
-                  {SODA_PATH}/checks/bitcoin_silver.yaml
-        """,
+        python_callable=_soda_scan_silver,
     )
 
     gold_aggregate = PythonOperator(

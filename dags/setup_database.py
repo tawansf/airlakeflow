@@ -17,21 +17,39 @@ with DAG(
 ) as dag:
 
     migration_001 = PostgresOperator(
-        task_id="migration_001_bronze",
+        task_id="migration_001_setup_schema",
         postgres_conn_id="postgres_datawarehouse",
-        sql="sql/migrations/V001__setup_bronze.sql"
+        sql="sql/migrations/V001__setup_schema.sql"
     )
 
     migration_002 = PostgresOperator(
-        task_id="migration_002_silver",
+        task_id="migration_002_setup_bronze",
         postgres_conn_id="postgres_datawarehouse",
-        sql="sql/migrations/V002__setup_silver.sql"
+        sql="sql/migrations/V002__setup_bronze.sql"
     )
 
     migration_003 = PostgresOperator(
-        task_id="migration_003_gold",
+        task_id="migration_003_setup_silver",
         postgres_conn_id="postgres_datawarehouse",
-        sql="sql/migrations/V003__setup_gold.sql"
+        sql="sql/migrations/V003__setup_silver.sql"
     )
 
-    migration_001 >> migration_002 >> migration_003
+    migration_004 = PostgresOperator(
+        task_id="migration_004_setup_gold",
+        postgres_conn_id="postgres_datawarehouse",
+        sql="sql/migrations/V004__setup_gold.sql"
+    )
+
+    migration_005 = PostgresOperator(
+        task_id="migration_005_setup_soda",
+        postgres_conn_id="postgres_datawarehouse",
+        sql="sql/migrations/V005__monitoring_soda_metricas_agrupado.sql"
+    )
+
+    migration_006 = PostgresOperator(
+        task_id="migration_006_soda_metricas_soda4_enrich",
+        postgres_conn_id="postgres_datawarehouse",
+        sql="sql/migrations/V006__soda_metricas_soda4_enrich.sql"
+    )
+
+    migration_001 >> migration_002 >> migration_003 >> migration_004 >> migration_005 >> migration_006

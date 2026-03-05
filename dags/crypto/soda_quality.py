@@ -24,9 +24,9 @@ with DAG(
     verify_silver = BashOperator(
         task_id="soda_scan_silver_bitcoin",
         bash_command=f"""
-        soda scan -d postgres_datawarehouse \
-                  -c {SODA_PATH}/configuration.yaml \
-                  {SODA_PATH}/checks/bitcoin_silver.yaml
+        soda contract verify \
+                  --data-source {SODA_PATH}/configuration.yaml \
+                  --contract {SODA_PATH}/contracts/bitcoin_silver.yaml
         """
     )
 

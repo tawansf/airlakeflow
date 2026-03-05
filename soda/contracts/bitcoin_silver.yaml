@@ -1,0 +1,42 @@
+# Data Contract - Silver Bitcoin (Soda 4+)
+dataset: postgres_datawarehouse/datawarehouse/silver/bitcoin
+
+checks:
+  - row_count:
+      name: Table is not empty
+      threshold:
+        must_be_greater_than: 0
+  - row_count:
+      name: Minimum rows for analysis
+      threshold:
+        must_be_greater_than: 1
+  - freshness:
+      name: Recent data
+      column: updated_at
+      threshold:
+        unit: hour
+        must_be_less_than: 48
+  - row_count:
+      name: No non-USD rows allowed
+      qualifier: no_non_usd
+      filter: currency != 'usd'
+      threshold:
+        must_be: 0
+
+columns:
+  - name: id
+    checks:
+      - duplicate:
+          name: No duplicate IDs
+  - name: currency
+    checks:
+      - invalid:
+          name: Currency must be USD
+          valid_values: ['usd']
+  - name: price
+    checks:
+      - aggregate:
+          name: Price is positive and greater than zero
+          function: min
+          threshold:
+            must_be_greater_than: 0

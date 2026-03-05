@@ -1,8 +1,9 @@
-data_source postgres_datawarehouse:
-  type: postgres
-  connection:
-    host: postgres
-    port: 5432
-    username: airflow
-    password: airflow
-    database: datawarehouse
+# Soda 4+ data source config (name, type, connection)
+name: postgres_datawarehouse
+type: postgres
+connection:
+  host: postgres
+  port: 5432
+  user: airflow
+  password: airflow
+  database: datawarehouse

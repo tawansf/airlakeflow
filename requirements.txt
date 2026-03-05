@@ -3,11 +3,9 @@ pandas>=2.0.0
 scikit-learn>=1.3.0
 pyspark>=3.5.0
 boto3>=1.34.0
-soda-core-spark>=3.0.0
-soda-core-spark-df>=3.0.0
 python-dotenv>=1.0.0
-soda-core>=3.0.0
-soda-core-postgres>=3.0.0
+soda-core>=4.0.0
+soda-postgres>=4.0.0
 
 # Tests
 pytest>=7.4.0

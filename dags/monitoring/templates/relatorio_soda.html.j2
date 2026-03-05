@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ titulo }}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased">
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <header class="mb-8">
+      <h1 class="text-3xl font-bold text-slate-900">{{ titulo }}</h1>
+      <p class="text-slate-500 mt-1">Gerado em {{ data_geracao }}</p>
+    </header>
+
+    {% if erro %}
+    <section class="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
+      <h2 class="text-lg font-semibold text-red-800 mb-2">Erro ao gerar relatório</h2>
+      <p class="text-red-700 text-sm">{{ erro }}</p>
+    </section>
+    {% endif %}
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Resumo (Organization Dashboard)</h2>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-sky-500">
+          <p class="text-sm text-slate-500">Saúde</p>
+          <p class="text-2xl font-bold text-sky-600">{{ (resumo.health_score | default(100)) | round(1) }}%</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
+          <p class="text-sm text-slate-500">Aprovados</p>
+          <p class="text-2xl font-bold text-emerald-600">{{ resumo.total_aprovados | default(0) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
+          <p class="text-sm text-slate-500">Em falha</p>
+          <p class="text-2xl font-bold text-red-600">{{ resumo.tabelas_em_falha | default(0) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-amber-500">
+          <p class="text-sm text-slate-500">Com alertas</p>
+          <p class="text-2xl font-bold text-amber-600">{{ resumo.total_alertas | default(0) }}</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 border-l-4 border-slate-400">
+          <p class="text-sm text-slate-500">Tabelas validadas</p>
+          <p class="text-2xl font-bold text-slate-700">{{ resumo.total_tabelas | default(0) }}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Status por camada</h2>
+      <div class="bg-white rounded-lg shadow p-4">
+        <div id="chartCamadaContainer">
+          <canvas id="chartCamada" height="120"></canvas>
+        </div>
+        <p id="chartCamadaEmpty" class="text-slate-500 text-sm py-4 hidden">Não há dados para exibir o gráfico.</p>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Tendência (últimos 14 dias)</h2>
+      <div class="bg-white rounded-lg shadow p-4">
+        <div id="chartTendenciaContainer">
+          <canvas id="chartTendencia" height="120"></canvas>
+        </div>
+        <p id="chartTendenciaEmpty" class="text-slate-500 text-sm py-4 hidden">Não há dados para exibir o gráfico de tendência.</p>
+      </div>
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Monitores por tabela (Metric Monitors)</h2>
+      {% if not detalhes %}
+      <div class="bg-white rounded-lg shadow p-8 text-center text-slate-500">
+        <p>Nenhuma execução de qualidade encontrada.</p>
+      </div>
+      {% else %}
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for row in detalhes %}
+        <div class="bg-white rounded-lg shadow p-4 border border-slate-200 hover:border-slate-300 transition-colors">
+          <div class="flex items-center justify-between mb-2">
+            <p class="text-sm font-medium text-slate-800 truncate" title="{{ row.nome_tabela | default('–') }}">{{ row.nome_tabela | default('–') }}</p>
+            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full shrink-0 {% if row.status_geral == 'Aprovado' %}bg-emerald-100 text-emerald-800{% elif row.status_geral == 'Reprovado' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+              {{ row.status_geral | default('–') }}
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mb-1">Taxa: {{ (row.taxa_sucesso | default(0)) | round(1) }}% · {{ row.regras_com_sucesso | default(0) }}/{{ row.total_regras | default(0) }} regras</p>
+          <div class="h-10 mt-2">
+            <canvas id="card-spark-{{ loop.index0 }}" height="40" width="260"></canvas>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="mb-8">
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Última execução por tabela</h2>
+      {% if not detalhes %}
+      <div class="bg-white rounded-lg shadow p-8 text-center text-slate-500">
+        <p>Nenhuma execução de qualidade encontrada.</p>
+        <p class="text-sm mt-2">Execute o pipeline e gere o relatório novamente.</p>
+      </div>
+      {% else %}
+      <div class="bg-white rounded-lg shadow overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-100">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase w-8"></th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tabela</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Camada</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Data execução</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Taxa sucesso</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Regras</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-28">Últimos 7</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {% for row in detalhes %}
+            <tr class="{% if row.status_geral == 'Reprovado' %}bg-red-50{% elif row.status_geral == 'Aprovado com Alertas' %}bg-amber-50{% else %}bg-white{% endif %}" data-row-index="{{ loop.index0 }}">
+              <td class="px-4 py-3">
+                {% if row.checks_list or row.measurements or (row.timestamps and row.timestamps.started != '–') or (row.contract_status and row.contract_status != '–') %}
+                <button type="button" class="text-slate-500 hover:text-slate-700 text-sm underline expand-checks" data-row="{{ loop.index0 }}" aria-label="Ver detalhes">Ver detalhes</button>
+                {% else %}
+                <span class="text-slate-400">–</span>
+                {% endif %}
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-800">{{ row.nome_tabela | default('–') }}</td>
+              <td class="px-4 py-3 text-sm text-slate-600">{{ row.camada | default('–') }}</td>
+              <td class="px-4 py-3 text-sm text-slate-600">{{ row.data_execucao | default('–') }}</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {% if row.status_geral == 'Aprovado' %}bg-emerald-100 text-emerald-800{% elif row.status_geral == 'Reprovado' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                  {{ row.status_geral | default('–') }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-sm text-right font-medium">{{ (row.taxa_sucesso | default(0)) | round(1) }}%</td>
+              <td class="px-4 py-3 text-sm text-right text-slate-600">{{ row.regras_com_sucesso | default(0) }}/{{ row.total_regras | default(0) }}</td>
+              <td class="px-4 py-2 text-center">
+                <canvas id="spark-{{ loop.index0 }}" height="36" width="100" class="mx-auto"></canvas>
+              </td>
+            </tr>
+            {% if row.checks_list or row.measurements or (row.timestamps and row.timestamps.started != '–') or (row.contract_status and row.contract_status != '–') %}
+            <tr class="checks-detail hidden bg-slate-50" data-detail-row="{{ loop.index0 }}">
+              <td colspan="8" class="px-4 py-3">
+                <div class="text-sm space-y-4">
+                  {% if row.contract_status != '–' or (row.timestamps and row.timestamps.started != '–') %}
+                  <div class="flex flex-wrap gap-4 items-center">
+                    {% if row.contract_status != '–' %}
+                    <span class="font-medium text-slate-600">Status do contrato:</span>
+                    <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full {% if row.contract_status == 'PASSED' %}bg-emerald-100 text-emerald-800{% elif row.contract_status == 'FAILED' %}bg-red-100 text-red-800{% elif row.contract_status == 'WARNED' %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">{{ row.contract_status }}</span>
+                    {% endif %}
+                    {% if row.timestamps and (row.timestamps.started != '–' or row.timestamps.ended != '–' or row.timestamps.data != '–') %}
+                    <span class="font-medium text-slate-600">Timestamps:</span>
+                    <span class="text-slate-600">Início {{ row.timestamps.started }} · Fim {{ row.timestamps.ended }}{% if row.timestamps.data != '–' %} · Dados {{ row.timestamps.data }}{% endif %}</span>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                  {% if row.checks_list %}
+                  <div>
+                    <p class="font-medium text-slate-600 mb-2">Regras executadas (Soda 4):</p>
+                    <ul class="space-y-2">
+                      {% for check in row.checks_list %}
+                      <li class="border-l-2 border-slate-200 pl-3 py-1">
+                        <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded mr-2 {% if check.outcome == 'pass' %}bg-emerald-100 text-emerald-800{% elif check.outcome == 'fail' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">{{ check.outcome | default('–') }}</span>
+                        <span class="font-medium">{{ check.name | default('Sem nome') }}</span>
+                        {% if check.check_type and check.check_type != '–' %}<span class="text-slate-500 text-xs">({{ check.check_type }})</span>{% endif %}
+                        {% if check.column_name and check.column_name != '–' %}<span class="text-slate-500 text-xs"> coluna: {{ check.column_name }}</span>{% endif %}
+                        {% if check.threshold_value is not none %}<span class="text-slate-600 text-xs"> · limite: {{ check.threshold_value }}</span>{% endif %}
+                        {% if check.diagnostic_metric_values %}
+                        <div class="mt-1 text-xs text-slate-600">Métricas: {% for k, v in check.diagnostic_metric_values.items() %}{{ k }}: {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</div>
+                        {% endif %}
+                      </li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                  {% if row.measurements %}
+                  <div>
+                    <p class="font-medium text-slate-600 mb-2">Métricas capturadas:</p>
+                    <ul class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-slate-600">
+                      {% for m in row.measurements %}
+                      <li class="flex justify-between gap-2"><span>{{ m.metric_name | default(m.metric_id) | default('–') }}</span><span class="font-mono">{{ m.value }}</span></li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </section>
+
+    <footer class="text-sm text-slate-400 pt-4 border-t border-slate-200">
+      Fonte: tabela monitoring.soda_metricas. Gerado pelo job relatorio_soda_metricas.
+    </footer>
+  </div>
+
+  <script>
+    const dadosGrafico = {{ dados_grafico | tojson }};
+    if (dadosGrafico && dadosGrafico.labels && dadosGrafico.labels.length > 0 && dadosGrafico.datasets) {
+      new Chart(document.getElementById('chartCamada'), {
+        type: 'bar',
+        data: dadosGrafico,
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    } else {
+      document.getElementById('chartCamadaContainer').classList.add('hidden');
+      document.getElementById('chartCamadaEmpty').classList.remove('hidden');
+    }
+
+    const dadosTendencia = {{ dados_grafico_tendencia | tojson }};
+    if (dadosTendencia && dadosTendencia.labels && dadosTendencia.labels.length > 0 && dadosTendencia.datasets) {
+      new Chart(document.getElementById('chartTendencia'), {
+        type: 'line',
+        data: dadosTendencia,
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: true } }
+        }
+      });
+    } else {
+      document.getElementById('chartTendenciaContainer').classList.add('hidden');
+      document.getElementById('chartTendenciaEmpty').classList.remove('hidden');
+    }
+
+    document.querySelectorAll('.expand-checks').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        const rowIndex = this.getAttribute('data-row');
+        const detailRow = document.querySelector('tr.checks-detail[data-detail-row="' + rowIndex + '"]');
+        if (detailRow) {
+          detailRow.classList.toggle('hidden');
+          this.textContent = detailRow.classList.contains('hidden') ? 'Ver checks' : 'Ocultar';
+        }
+      });
+    });
+
+    var sparklines = [
+      {% for row in detalhes %}
+      { "id": "spark-{{ loop.index0 }}", "labels": {{ row.sparkline.labels | tojson }}, "data": {{ row.sparkline.data | tojson }} }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+    sparklines.forEach(function(s) {
+      if (s.data && s.data.length > 0) {
+        var el = document.getElementById(s.id);
+        if (el) {
+          new Chart(el, {
+            type: 'line',
+            data: { labels: s.labels, datasets: [{ data: s.data, borderColor: 'rgb(59, 130, 246)', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3, pointRadius: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: true, min: 0, max: 100 } } }
+          });
+        }
+      }
+    });
+
+    var cardSparklines = [
+      {% for row in detalhes %}
+      { "id": "card-spark-{{ loop.index0 }}", "labels": {{ row.sparkline.labels | tojson }}, "data": {{ row.sparkline.data | tojson }} }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    ];
+    cardSparklines.forEach(function(s) {
+      if (s.data && s.data.length > 0) {
+        var el = document.getElementById(s.id);
+        if (el) {
+          new Chart(el, {
+            type: 'line',
+            data: { labels: s.labels, datasets: [{ data: s.data, borderColor: 'rgb(16, 185, 129)', backgroundColor: 'rgba(16, 185, 129, 0.08)', fill: true, tension: 0.3, pointRadius: 2 }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false, min: 0, max: 100 } } }
+          });
+        }
+      }
+    });
+  </script>
+</body>
+</html>
