@@ -24,7 +24,7 @@ The pipeline follows the Medallion Architecture pattern (Bronze, Silver, Gold la
 
 * `dags/`: Airflow DAG definitions. One **domain** (e.g. crypto, vendas) = one subfolder with `bronze.py`, `silver.py`, `gold.py`, optional `transformations/`, and a `pipeline.py` for the full flow.
 * `dags/sql/migrations/`: **Schema migrations** (versioned). Create tables/schemas for Bronze, Silver, and Gold. Run by the DAG `00_setup_database_migrations`. Naming: `V001__description.sql`, `V002__…`, etc.
-* `scripts/`: **Infra scripts only** (e.g. Postgres init). Not schema migrations. Example: `01-init-datawarehouse.sql` runs once when the Postgres container starts and creates the `datawarehouse` database.
+* `scripts/`: **Infra scripts only** (e.g. Postgres init). Not schema migrations. Example: `001_init_datawarehouse.sql` runs once when the Postgres container starts and creates the `datawarehouse` database.
 * `soda/`: Soda Core config and **data quality checks** (YAML). One file per table or layer (e.g. `bitcoin_bronze.yaml`, `bitcoin_silver.yaml`).
 * `plugins/`: JDBC drivers (e.g. PostgreSQL) and custom Airflow plugins.
 * `docker-compose.yaml`, `Dockerfile`: Multi-container environment (Airflow, Postgres, Redis, etc.).
@@ -82,7 +82,7 @@ Before the pipeline completes, Soda Core scans the transformed data against defi
     Navigate to `http://localhost:8080` to access the Airflow UI and trigger the DAGs. The **crypto_pipeline** DAG runs the full flow (Bronze → Quality Bronze → Silver → Quality Silver → Gold) on an hourly schedule. The DAGs `01_bronze_*`, `02_silver_*`, `03_silver_quality_*`, and `04_gold_*` can be run individually for ad-hoc use. Run **00_setup_database_migrations** once (or after adding new migrations) to create schemas and tables, including `gold.bitcoin_daily`.
 
 6.  **Configure the Data Warehouse connection (required for pipeline DAGs):**
-    The database `datawarehouse` is created automatically on the first `docker compose up` (via `scripts/01-init-datawarehouse.sql`). If the Postgres volume already existed before adding this script, create the database manually: `docker compose exec postgres psql -U airflow -d airflow -c "CREATE DATABASE datawarehouse;"`.
+    The database `datawarehouse` is created automatically on the first `docker compose up` (via `scripts/001_init_datawarehouse.sql`). If the Postgres volume already existed before adding this script, create the database manually: `docker compose exec postgres psql -U airflow -d airflow -c "CREATE DATABASE datawarehouse;"`.
 
     In the Airflow UI, add the connection used by the Bronze/Silver pipeline:
     * Go to **Admin** → **Connections** → **+** (Add a new record).

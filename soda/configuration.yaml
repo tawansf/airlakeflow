@@ -1,4 +1,4 @@
-# Soda 4+ data source config (name, type, connection)
+# Soda data source config (name, type, connection)
 name: postgres_datawarehouse
 type: postgres
 connection:
