@@ -1,5 +1,4 @@
-# Data Contract - Bronze Bitcoin (Soda 4+)
-# dataset: data_source_name / database / schema / table
+# Data Contract - Bronze Bitcoin
 dataset: postgres_datawarehouse/datawarehouse/bronze/bitcoin_raw
 
 checks:

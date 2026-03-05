@@ -1,4 +1,4 @@
-# Data Contract - Silver Bitcoin (Soda 4+)
+# Data Contract - Silver Bitcoin
 dataset: postgres_datawarehouse/datawarehouse/silver/bitcoin
 
 checks:
