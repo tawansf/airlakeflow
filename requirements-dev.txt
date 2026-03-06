@@ -1,0 +1,6 @@
+# Dev dependencies: tests, lint, format
+# Use: pip install -e ".[dev]" or pip install -r requirements-dev.txt (after -e .)
+-e .
+pytest>=7.4
+ruff>=0.8.0
+black>=24.0.0

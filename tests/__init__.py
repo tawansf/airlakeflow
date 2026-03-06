@@ -1,1 +1,1 @@
-# Tests for the data engineering pipeline.
+# Tests for the AirLakeFlow framework (CLI and package).
