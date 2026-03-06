@@ -1,125 +1,123 @@
 # AirLakeFlow
 
-Framework e CLI para criar e rodar pipelines de dados no padrão **Medallion** (Bronze → Silver → Gold) com **Apache Airflow**.
+Framework and CLI to build and run data pipelines using the **Medallion** pattern (Bronze → Silver → Gold) with **Apache Airflow**.
+
+**Other languages:** [Português (pt-BR)](docs/translations/README.pt-BR.md)
 
 ---
 
-## O que o framework faz
+## What the framework does
 
-- **Inicializa projetos** com a estrutura pronta (DAGs, Soda, Docker Compose, migrations).
-- **Gera pipelines ETL** por domínio (bronze, silver, gold, opcionalmente contratos Soda).
-- **Cria migrations SQL** versionadas por camada (bronze/silver/gold).
-- **Valida** estrutura e ambiente (Docker, arquivos obrigatórios).
-- **Controla a aplicação** (subir, parar, reiniciar, logs) via Docker Compose.
+- **Initializes projects** with a ready-made structure (DAGs, Soda, Docker Compose, migrations).
+- **Generates ETL pipelines** by domain (bronze, silver, gold, optionally Soda contracts).
+- **Creates versioned SQL migrations** per layer (bronze/silver/gold).
+- **Validates** project structure and environment (Docker, required files).
+- **Runs the application** (up, stop, restart, logs) via Docker Compose.
 
-Tudo via comando `**alf`** (alias: `airlakeflow`).
+All through the `**alf**` command (alias: `airlakeflow`).
 
 ---
 
-## Instalação
+## Installation
 
 ```bash
 pip install -e .
 ```
 
-Requisitos: **Python 3.10+**. Para rodar os projetos gerados: **Docker** e **Docker Compose**.
+Requirements: **Python 3.10+**. To run generated projects: **Docker** and **Docker Compose**.
 
-### Desenvolvimento do framework (raiz do repo)
+### Framework development (repo root)
 
-Para trabalhar no código do AirLakeFlow na raiz do repositório, crie um venv e instale o pacote em modo editável:
+To work on AirLakeFlow code at the repository root, create a venv and install the package in editable mode:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate   # Linux/macOS
-# ou:  .venv\Scripts\activate   # Windows
+# or:  .venv\Scripts\activate   # Windows
 pip install -e .
 alf --version
 ```
 
-O `.venv` fica na raiz; os exemplos em `demos/` têm seus próprios ambientes (ex.: `demos/full-example/venv`). Para desenvolvimento: `pip install -e ".[dev]"` (inclui pytest, ruff, black). Rodar testes: `pytest tests/`. Lint: `ruff check src tests`. Formatar: `black src tests`.
+The `.venv` lives at the repo root; demos in `demos/` use their own environments (e.g. `demos/full-example/venv`). For development: `pip install -e ".[dev]"` (adds pytest, ruff, black). Run tests: `pytest tests/`. Lint: `ruff check src tests`. Format: `black src tests`.
 
 ---
 
-## Uso rápido
+## Quick start
 
 ```bash
-# 1. Criar um novo projeto
-alf init meu-projeto
-cd meu-projeto
+# 1. Create a new project
+alf init my-project
+cd my-project
 
-# 2. Criar um pipeline ETL
-alf new etl vendas
-alf new migration setup_bronze_vendas --dag vendas --layer bronze
-# (editar dags/sql/migrations/ e a lógica em dags/vendas/)
+# 2. Create an ETL pipeline
+alf new etl sales
+alf new migration setup_bronze_sales --dag sales --layer bronze
+# (edit dags/sql/migrations/ and logic in dags/sales/)
 
-# 3. Opcional: adicionar qualidade com Soda
-alf add soda --etl vendas
+# 3. Optional: add quality with Soda
+alf add soda --etl sales
 
-# 4. Validar e subir
+# 4. Validate and run
 alf validate
 alf run
 ```
 
 ---
 
-## Comandos
+## Commands
 
-### Projeto
+### Project
 
-
-| Comando                              | Descrição                                                                                                                      |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `alf init [nome]`                    | Cria um novo projeto (pasta com dags/, soda/, docker-compose, etc.). Sem nome, usa o diretório atual.                          |
-| `alf validate [--project-root PATH]` | Verifica estrutura (dags/, soda/, docker-compose) e Docker (daemon, stack). Use `--no-docker` ou `--no-stack` para restringir. |
-
-
-### ETL e migrations
+| Command                               | Description                                                                                                                       |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `alf init [name]`                     | Create a new project (folder with dags/, soda/, docker-compose, etc.). Omit name to use the current directory.                   |
+| `alf validate [--project-root PATH]`  | Check structure (dags/, soda/, docker-compose) and Docker (daemon, stack). Use `--no-docker` or `--no-stack` to narrow the check.  |
 
 
-| Comando                  | Descrição                                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------ |
-| `alf new etl NAME`       | Gera um pipeline ETL (bronze, silver, gold, pipeline.py). Opções: `--contracts`, `--no-gold`, `--source api        |
-| `alf new migration NAME` | Cria uma migration SQL (V0XX__nome.sql). Escolha o DAG e a camada (bronze/silver/gold) ou use `--dag` e `--layer`. |
+### ETL and migrations
+
+| Command                   | Description                                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `alf new etl NAME`        | Generate an ETL pipeline (bronze, silver, gold, pipeline.py). Options: `--contracts`, `--no-gold`, `--source api|file|jdbc`. |
+| `alf new migration NAME`  | Create a SQL migration (V0XX__name.sql). Choose DAG and layer (bronze/silver/gold) or use `--dag` and `--layer`.       |
 
 
-### Qualidade
+### Quality
+
+| Command                              | Description                                                                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `alf add soda [--etl NAME \| --all]` | Integrate Soda: config, contracts, and scan tasks in pipelines. With no option: interactive mode (lists ETLs + “Full project”).     |
 
 
-| Comando                             | Descrição                                                                                                                      |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `alf add soda [--etl NAME | --all]` | Integra Soda: config, contratos e tarefas de scan nos pipelines. Sem opção: modo interativo (lista ETLs + “Projeto completo”). |
+### Docker (application)
+
+| Command                    | Description                                                                                                                                 |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `alf run`                  | Start the stack in the background (`docker compose up -d`). Creates `.env` and `logs/` if missing; sets AIRFLOW_UID and Postgres port when possible. |
+| `alf stop`                 | Stop containers.                                                                                                                           |
+| `alf restart`              | Stop and start again.                                                                                                                      |
+| `alf down [--volumes]`     | Tear down the stack (optionally remove volumes).                                                                                           |
+| `alf logs [-f] [SERVICE]`  | Show service logs.                                                                                                                         |
+| `alf ps`                   | List running containers.                                                                                                                   |
 
 
-### Docker (aplicação)
-
-
-| Comando                   | Descrição                                                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `alf run`                 | Sobe a stack em background (`docker compose up -d`). Cria `.env` e `logs/` se não existirem; define AIRFLOW_UID e porta do Postgres quando possível. |
-| `alf stop`                | Para os containers.                                                                                                                                  |
-| `alf restart`             | Para e sobe de novo.                                                                                                                                 |
-| `alf down [--volumes]`    | Derruba a stack (e opcionalmente remove volumes).                                                                                                    |
-| `alf logs [-f] [SERVICE]` | Mostra logs dos serviços.                                                                                                                            |
-| `alf ps`                  | Lista containers em execução.                                                                                                                        |
-
-
-Em todos os comandos que atuam sobre um projeto pode-se usar `**--project-root PATH**` (padrão: diretório atual).
+For any command that operates on a project you can pass `**--project-root PATH**` (default: current directory).
 
 ---
 
-## Estrutura de um projeto gerado
+## Generated project structure
 
-Após `alf init nome` ou usando um exemplo em `demos/`:
+After `alf init name` or when using an example in `demos/`:
 
 ```
-nome/
-  dags/              # DAGs Airflow (um subdiretório por domínio)
+name/
+  dags/              # Airflow DAGs (one subdir per domain)
     setup_database.py
     sql/migrations/  # V001__*.sql, V002__*.sql, ...
-  soda/              # Config e contratos Soda
+  soda/              # Soda config and contracts
     configuration.yaml
     contracts/
-  scripts/            # Scripts de infra (ex.: criar DB)
+  scripts/           # Infra scripts (e.g. create DB)
   config/, plugins/, data/, logs/
   docker-compose.yaml
   Dockerfile
@@ -128,20 +126,19 @@ nome/
 
 ---
 
-## Estrutura do repositório (framework)
+## Repository structure (framework)
 
-
-| Pasta                | Conteúdo                                                                                                                                                          |
+| Folder               | Contents                                                                                                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **src/airlakeflow/** | Código do framework: CLI, templates, skeleton usado por `alf init` (layout [src](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)). |
-| **demos/**           | Exemplos: full-example (projeto completo), test-project.                                                                                                          |
-| **docs/**            | Documentação de referência (ver [docs/README.md](docs/README.md)).                                                                                                |
-| **planning/**        | Documentos de planejamento e design (não são doc de usuário).                                                                                                     |
-| **tests/**           | Testes do framework (pytest).                                                                                                                                     |
+| **src/airlakeflow/** | Framework code: CLI, templates, skeleton used by `alf init` ([src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)).       |
+| **demos/**           | Example projects: full-example (complete), test-project.                                                                                                            |
+| **docs/**            | Reference documentation (see [docs/README.md](docs/README.md)). Translations: [docs/translations/](docs/translations/).                                            |
+| **planning/**        | Planning and design docs (not end-user documentation).                                                                                                            |
+| **tests/**           | Framework tests (pytest).                                                                                                                                         |
 
 
 ---
 
-## Licença
+## License
 
 [LICENSE](LICENSE).
