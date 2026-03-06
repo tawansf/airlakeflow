@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS silver.{{ entity_snake }} (
+    id SERIAL PRIMARY KEY,
+    entity_id VARCHAR(50) NOT NULL,
+    value NUMERIC(18, 8),
+    updated_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_silver_{{ entity_snake }}_entity ON silver.{{ entity_snake }}(entity_id);
+CREATE INDEX IF NOT EXISTS idx_silver_{{ entity_snake }}_date ON silver.{{ entity_snake }}(updated_at);

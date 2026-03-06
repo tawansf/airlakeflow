@@ -1,0 +1,31 @@
+# Data Contract - Bronze Csgostats (Soda 4+)
+dataset: postgres_datawarehouse/datawarehouse/bronze/csgostats_raw
+
+checks:
+  - row_count:
+      name: Table exists and is readable
+      threshold:
+        must_be_greater_than_or_equal: 0
+  - row_count:
+      name: Volume within limit
+      qualifier: volume_limit
+      threshold:
+        must_be_less_than: 100000
+
+columns:
+  - name: id
+    checks:
+      - duplicate:
+          name: No duplicate IDs
+  - name: data_ingestao
+    checks:
+      - missing:
+          name: Data ingestao never null
+          threshold:
+            must_be: 0
+  - name: payload
+    checks:
+      - missing:
+          name: Payload is never null
+          threshold:
+            must_be: 0

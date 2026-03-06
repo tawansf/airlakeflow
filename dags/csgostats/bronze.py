@@ -1,0 +1,27 @@
+import logging
+import os
+from datetime import datetime
+from dotenv import load_dotenv
+
+from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+
+def bronze_ingestion_data_csgostats():
+    """Ingestão bronze para csgostats. Ajuste a fonte conforme --source (api/file/jdbc)."""
+    pg_hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
+    # Exemplo: API. Substitua pela URL e lógica reais.
+    import json
+    import requests
+    url = os.getenv("CSGOSTATS_API_URL", "https://api.example.com/data")
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    data = response.json()
+    data["processed_at"] = datetime.now().isoformat()
+    payload_str = json.dumps(data)
+    insert_sql = """INSERT INTO bronze.csgostats_raw (payload) VALUES (%s);"""
+    pg_hook.run(insert_sql, parameters=[payload_str])
+    logger.info("Ingestão Bronze csgostats concluída.")

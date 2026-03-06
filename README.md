@@ -102,32 +102,85 @@ Before the pipeline completes, Soda Core scans the transformed data against defi
 * **Re-rodar apenas Silver (ou Gold):** No Airflow, use o DAG `02_silver_transformation_data_bitcoin` ou `04_gold_aggregate_bitcoin_daily` e dispare uma run manual. Para re-processar apenas uma data, seria necessário um parâmetro ou DAG com conf (não implementado por padrão).
 * **Onde ver logs:** Airflow UI → DAG run → task → “Log”. Logs do scheduler/worker também em `logs/` no projeto.
 
+## CLI (AirLakeFlow / alf)
+
+The project includes a CLI **AirLakeFlow** with alias **`alf`**. Commands use spaces (no hyphens): `alf new etl`, `alf new contract`, `alf init`, etc.
+
+### Install (editable, from repo root)
+
+```bash
+pip install -e .
+# or run without installing: PYTHONPATH=. python3 -m airlakeflow.cli ...
+```
+
+### Commands
+
+* **`alf new etl NAME [options]`** — Generate a new ETL pipeline in the current project (no migrations; create them with `alf new migration`).
+  * `NAME`: domain name (e.g. `vendas`, `weather`). Creates `dags/<name>/`, pipeline, bronze/silver/gold, transformations, and optionally Soda contracts.
+  * `--contracts` / `--no-contracts`: generate Soda 4 contracts (bronze + silver). Default: no.
+  * `--gold` / `--no-gold`: include gold layer. Default: yes.
+  * `--source api|file|jdbc`: bronze ingestion type. Default: `api`.
+  * `--no-spark`: silver without Spark (Python-only placeholder).
+  * `--table-name NAME`: table/base name (default: same as NAME).
+  * `--project-root PATH`: project root (default: current directory).
+
+  Example:
+  ```bash
+  alf new etl vendas --contracts --project-root .
+  ```
+
+* **`alf new migration NAME [options]`** — Create a migration for an existing DAG. You choose the DAG (or are prompted) and the layer (bronze, silver, gold). Creates a new `V0XX__<name>.sql` with a placeholder table (default columns); edit the file to match your schema.
+  * `NAME`: short description for the migration (e.g. `setup_bronze_csgostats`).
+  * `--dag NAME`: DAG folder name (e.g. `csgostats`, `vendas`). If omitted, the CLI lists DAGs to choose from.
+  * `--layer bronze|silver|gold`: layer. If omitted, you are prompted.
+  * `--project-root PATH`: project root (default: current directory).
+
+  Example:
+  ```bash
+  alf new migration setup_bronze_csgostats --dag csgostats --layer bronze
+  alf new migration minha_migration   # prompts for DAG and layer
+  ```
+
+* **`alf new contract SCHEMA TABLE [options]`** — Generate a Soda contract for an existing table (in development). For now, use `alf new etl NAME --contracts` to generate contracts with the ETL.
+
+* **`alf new layer NAME [options]`** — Generate a new layer or resource (in development).
+
+* **`alf init [DEST]`** — Create a new project by copying the framework structure into `DEST` (default: current dir).
+  * `--demo` / `--no-demo`: include crypto demo DAG. Default: yes.
+  * `--with-monitoring` / `--no-monitoring`: include monitoring schema and Soda report. Default: yes.
+
+### Migrations (auto-discovery)
+
+The DAG `00_setup_database_migrations` **discovers all** `V*.sql` files in `dags/sql/migrations/` and runs them in order. You do **not** need to edit `setup_database.py` when adding new migrations; just add a new file (e.g. `V007__setup_bronze_vendas.sql`) and run the setup DAG.
+
+---
+
 ## Adding a new pipeline (new domain)
 
-You can reuse this structure for any new data source (APIs, files, streams). Follow the same pattern: **one domain = one folder under `dags/`**, with Bronze → Silver → Gold and quality checks.
+You can reuse this structure for any new data source (APIs, files, streams). The fastest way is to use the CLI (see above). Alternatively, follow the same pattern manually: **one domain = one folder under `dags/`**, with Bronze → Silver → Gold and quality checks.
 
-### Step-by-step
+### Step-by-step (manual)
 
 1. **Create the domain folder**  
-   Example: `dags/vendas/` (or `dags/iot/`, etc.).
+   Example: `dags/vendas/` (or use `alf new etl vendas`).
 
 2. **Bronze (ingestion)**  
    Add a DAG file (e.g. `bronze.py`) that reads from your source (API, file, etc.) and writes **raw** data to Postgres (e.g. `bronze.vendas_raw` with a `payload` JSONB column). Reuse the same connection `postgres_datawarehouse`. Optionally add retries and timeout like in `crypto/bronze.py`.
 
 3. **Migrations**  
-   In `dags/sql/migrations/`, add a new version (e.g. `V004__setup_bronze_vendas.sql`) that creates the Bronze table (and Silver/Gold tables if needed). In `dags/setup_database.py`, add a new `PostgresOperator` task pointing to that file and chain it to the existing migrations (e.g. `migration_003 >> migration_004`). Run **00_setup_database_migrations** once after adding the file.
+   In `dags/sql/migrations/`, add a new version (e.g. `V007__setup_bronze_vendas.sql`). The DAG `00_setup_database_migrations` picks up all `V*.sql` files automatically; no need to edit `setup_database.py`. Run the setup DAG once after adding the file.
 
 4. **Silver (transformation)**  
    Add a transformation that reads from the new Bronze table, cleans/normalizes, and writes to a Silver table. You can put the Spark (or SQL) logic in `dags/<domain>/transformations/` and call it from a `silver.py` DAG, following the `crypto` example.
 
 5. **Gold (aggregation)**  
-   If needed, add a Gold table and a task that aggregates from Silver (e.g. daily rollups). See `crypto/gold.py` and `V003__setup_gold.sql`.
+   If needed, add a Gold table and a task that aggregates from Silver (e.g. daily rollups). See `crypto/gold.py` and the gold migration files.
 
 6. **Quality (Soda)**  
-   In `soda/checks/`, add YAML files for the new tables (e.g. `vendas_bronze.yaml`, `vendas_silver.yaml`) with checks (row count, freshness, nulls, business rules). Add BashOperator tasks in your pipeline to run `soda scan` on those files.
+   In `soda/contracts/` (Soda 4), add YAML contracts for the new tables (e.g. `vendas_bronze.yaml`, `vendas_silver.yaml`). Add PythonOperator tasks in your pipeline that call `run_soda_scan_and_persist` with the contract paths.
 
 7. **Unified pipeline DAG**  
-   Create a `pipeline.py` (or equivalent) that chains: ingestion → quality_bronze → transformation → quality_silver → gold_aggregate. Set `schedule_interval` and `default_args` (retries, retry_delay) as in `crypto/pipeline.py`.
+   Create a `pipeline.py` that chains: ingestion → quality_bronze → transformation → quality_silver → gold_aggregate. Set `schedule_interval` and `default_args` as in `crypto/pipeline.py`.
 
 ### Conventions
 

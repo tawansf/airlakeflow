@@ -1,0 +1,14 @@
+CREATE TABLE IF NOT EXISTS gold.{{ entity_snake }}_daily (
+    id SERIAL PRIMARY KEY,
+    date DATE NOT NULL,
+    entity_id VARCHAR(50) NOT NULL,
+    avg_value NUMERIC(18, 8),
+    min_value NUMERIC(18, 8),
+    max_value NUMERIC(18, 8),
+    records_count INTEGER NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (date, entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_gold_{{ entity_snake }}_daily_date ON gold.{{ entity_snake }}_daily(date);
+CREATE INDEX IF NOT EXISTS idx_gold_{{ entity_snake }}_daily_entity ON gold.{{ entity_snake }}_daily(entity_id);

@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS bronze.{{ entity_snake }}_raw (
+    id SERIAL PRIMARY KEY,
+    ingested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payload JSONB
+);
+
+CREATE INDEX IF NOT EXISTS idx_bronze_{{ entity_snake }}_data ON bronze.{{ entity_snake }}_raw(ingested_at);

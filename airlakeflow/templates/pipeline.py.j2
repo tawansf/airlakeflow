@@ -1,0 +1,89 @@
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from datetime import datetime, timedelta
+import os
+from dotenv import load_dotenv
+
+from {{ name_snake }}.bronze import bronze_ingestion_data_{{ entity_snake }}
+from {{ name_snake }}.silver import silver_transformation_data_{{ entity_snake }}
+{% if with_gold %}
+from {{ name_snake }}.gold import gold_aggregate_{{ entity_snake }}_daily
+{% endif %}
+{% if with_contracts %}
+from monitoring.soda_persistence import run_soda_scan_and_persist
+{% endif %}
+
+load_dotenv()
+
+SODA_PATH = os.getenv("SODA_PATH", "/opt/airflow/soda")
+
+{% if with_contracts %}
+def _soda_scan_bronze(**context):
+    run_soda_scan_and_persist(
+        data_source="postgres_datawarehouse",
+        config_path=f"{SODA_PATH}/configuration.yaml",
+        contract_path=f"{SODA_PATH}/contracts/{{ entity_snake }}_bronze.yaml",
+        dag_id=context["dag"].dag_id,
+        task_id=context["task"].task_id,
+    )
+
+def _soda_scan_silver(**context):
+    run_soda_scan_and_persist(
+        data_source="postgres_datawarehouse",
+        config_path=f"{SODA_PATH}/configuration.yaml",
+        contract_path=f"{SODA_PATH}/contracts/{{ entity_snake }}_silver.yaml",
+        dag_id=context["dag"].dag_id,
+        task_id=context["task"].task_id,
+    )
+{% endif %}
+
+default_args = {
+    "retries": 2,
+    "retry_delay": timedelta(minutes=1),
+    "owner": "airflow",
+}
+
+with DAG(
+    dag_id="{{ name_snake }}_pipeline",
+    start_date=datetime(2026, 2, 10),
+    schedule_interval="@hourly",
+    catchup=False,
+    default_args=default_args,
+    tags=["{{ name_snake }}", "pipeline", "bronze", "silver", "quality", "gold"],
+) as dag:
+    ingestion = PythonOperator(
+        task_id="bronze_ingestion_data_{{ entity_snake }}",
+        python_callable=bronze_ingestion_data_{{ entity_snake }},
+    )
+{% if with_contracts %}
+    quality_bronze = PythonOperator(
+        task_id="soda_scan_bronze_{{ entity_snake }}",
+        python_callable=_soda_scan_bronze,
+    )
+{% endif %}
+    transformation = PythonOperator(
+        task_id="silver_transformation_data_{{ entity_snake }}",
+        python_callable=silver_transformation_data_{{ entity_snake }},
+    )
+{% if with_contracts %}
+    quality_silver = PythonOperator(
+        task_id="soda_scan_silver_{{ entity_snake }}",
+        python_callable=_soda_scan_silver,
+    )
+{% endif %}
+{% if with_gold %}
+    gold_aggregate = PythonOperator(
+        task_id="gold_aggregate_{{ entity_snake }}_daily",
+        python_callable=gold_aggregate_{{ entity_snake }}_daily,
+    )
+{% endif %}
+
+{% if with_contracts and with_gold %}
+    ingestion >> quality_bronze >> transformation >> quality_silver >> gold_aggregate
+{% elif with_contracts %}
+    ingestion >> quality_bronze >> transformation >> quality_silver
+{% elif with_gold %}
+    ingestion >> transformation >> gold_aggregate
+{% else %}
+    ingestion >> transformation
+{% endif %}
