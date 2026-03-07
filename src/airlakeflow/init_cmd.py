@@ -1,8 +1,31 @@
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 from airlakeflow.docker_cmd import create_env_from_example
 from airlakeflow.style import SYM_OK, secho_heading, secho_info, secho_ok
+
+def _default_model_content(layer: str) -> str:
+    return f'''"""Model de exemplo ({layer}). Edite ou crie novos com 'alf new model NAME'."""
+
+from airlakeflow.models import Model, Field, layer
+
+
+@layer("{layer}")
+class ExampleModel(Model):
+    __table__ = "example"
+
+    id = Field.serial(primary_key=True)
+    name = Field.varchar(255, nullable=False)
+    created_at = Field.timestamp(default="CURRENT_TIMESTAMP")
+    updated_at = Field.timestamp(nullable=False)
+'''
+
+
+def _write_default_model(models_dir: Path, default_layer: str = "silver") -> None:
+    """Write config/models/example.py so init leaves model + migrations in sync."""
+    (models_dir / "example.py").write_text(_default_model_content(default_layer), encoding="utf-8")
 
 
 def run_init(
@@ -58,6 +81,8 @@ def run_init(
     dest_path.mkdir(parents=True, exist_ok=True)
     for d in dirs_to_copy:
         src = framework_root / d
+        if not src.exists() and (_skeleton_dir / d).exists():
+            src = _skeleton_dir / d
         if src.exists():
             dst = dest_path / d
             if dst.exists():
@@ -104,6 +129,7 @@ def run_init(
     config_path.write_text(
         f"""# AirLakeFlow project config
 silver_backend: {backend}
+architecture: medallion
 # soda_data_source: postgres_datawarehouse
 # soda_config_path: soda/configuration.yaml
 # contracts_dir: soda/contracts
@@ -140,6 +166,44 @@ silver_backend: {backend}
             (dest_path / "dags" / "sql" / "migrations").glob("V006*.sql")
         ):
             m.unlink()
+
+    # Create default model if config/models/ has no model files (so migrations have a reference)
+    models_dir = dest_path / "config" / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    existing_models = [p for p in models_dir.glob("*.py") if p.name != "__init__.py" and not p.name.startswith("_")]
+    if not existing_models:
+        from airlakeflow.config import get_architecture_from_config, load_config
+
+        cfg = load_config(dest_path)
+        arch = get_architecture_from_config(cfg)
+        _write_default_model(models_dir, arch.default_layer)
+        secho_info("  ▸ Model default criado: config/models/example.py")
+
+    # Generate default migrations from config/models/ so model and migrations stay in sync
+    try:
+        from airlakeflow.config import get_migration_driver, load_config
+        from airlakeflow.migration_gen import generate_migrations
+
+        cfg = load_config(dest_path)
+        driver = get_migration_driver(cfg)
+        created = generate_migrations(dest_path, driver=driver)
+        if created:
+            secho_info(f"  ▸ {len(created)} migration(s) gerada(s) a partir dos models")
+    except Exception:
+        pass  # do not fail init if migration generation fails (e.g. no dialect)
+
+    # Create a venv in the project so the user can install deps right away
+    venv_dir = dest_path / ".venv"
+    if not venv_dir.exists():
+        try:
+            subprocess.run(
+                [sys.executable, "-m", "venv", str(venv_dir)],
+                check=True,
+                capture_output=True,
+            )
+            secho_info("  ▸ venv criado: .venv (ative com source .venv/bin/activate ou .venv\\Scripts\\activate)")
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            pass  # do not fail init if venv creation fails
 
     secho_ok(f"{SYM_OK} Projeto criado: {dest_path}")
     if framework_root.name == "skeleton":

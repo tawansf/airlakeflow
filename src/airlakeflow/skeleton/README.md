@@ -18,3 +18,12 @@ Medallion-style data pipeline (Bronze / Silver / Gold) with Airflow and Soda.
 4. Run the **setup** DAG once: `00_setup_database_migrations` (creates bronze/silver/gold schemas and tables).
 5. Run the **demo** DAG: `crypto_pipeline` — usa dados mock, sem API externa. Depois replique as regras em suas próprias pipelines.
 6. Add your own pipelines with `alf new etl <name>` and migrations with `alf new migration <name>`.
+
+## Models and migrations (optional)
+
+You can define tables as **models** in `config/models/` and generate migrations from them:
+
+- `alf new model <name> --layer silver` — creates a model class in `config/models/`.
+- `alf generate-migrations` — generates `dags/sql/migrations/*.sql` from models (uses `migration_driver` from `.airlakeflow.yaml`, default: postgres).
+
+This keeps schema as the single source of truth; new SQL dialects (Oracle, SQL Server, etc.) can be added later.

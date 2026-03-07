@@ -5,7 +5,12 @@ import click
 
 from airlakeflow import __version__ as _pkg_version
 from airlakeflow.add_soda import run_add_soda
-from airlakeflow.config import load_config, resolve_project_root
+from airlakeflow.config import (
+    get_architecture_from_config,
+    get_migration_driver,
+    load_config,
+    resolve_project_root,
+)
 from airlakeflow.docker_cmd import (
     run_down,
     run_exec,
@@ -18,9 +23,17 @@ from airlakeflow.docker_cmd import (
 )
 from airlakeflow.doctor_cmd import run_doctor
 from airlakeflow.init_cmd import run_init
+from airlakeflow.migrations_cmd import (
+    run_align as run_migrations_align,
+    run_doctor as run_migrations_doctor,
+    run_down as run_migrations_down,
+    run_gen as run_migrations_gen,
+    run_up as run_migrations_up,
+)
 from airlakeflow.new_etl import run_new_etl
 from airlakeflow.new_migration import discover_dags, run_new_migration
-from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_warn
+from airlakeflow.new_model_cmd import run_new_model
+from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_info, secho_ok, secho_warn
 from airlakeflow.upgrade_cmd import run_upgrade
 from airlakeflow.validate_cmd import run_validate
 
@@ -33,7 +46,9 @@ class AlfGroup(click.Group):
 
     def format_commands(self, ctx, formatter):
         commands = sorted(self.list_commands(ctx))
-        rest = [c for c in commands if c not in DOCKER_COMMANDS]
+        # Hide aliases from help (e.g. "m"); show only full names like "migrations"
+        HIDDEN_ALIASES = frozenset({"m"})
+        rest = [c for c in commands if c not in DOCKER_COMMANDS and c not in HIDDEN_ALIASES]
         docker = [c for c in commands if c in DOCKER_COMMANDS]
         max_len = max((len(name) for name in commands), default=0)
         limit = formatter.width - 6 - max_len if formatter.width else 72
@@ -100,6 +115,26 @@ def new():
 def list_group():
     """List project resources (ETLs, etc.)."""
     pass
+
+
+def _architecture_layers(project_root: str = ".") -> list[str]:
+    """Return layer names from project architecture (for CLI choices). Falls back to medallion layers."""
+    try:
+        root = Path(resolve_project_root(project_root))
+        cfg = load_config(root)
+        return get_architecture_from_config(cfg).layers
+    except Exception:
+        return ["bronze", "silver", "gold"]
+
+
+def _architecture_default_layer(project_root: str = ".") -> str:
+    """Return default layer from project architecture (e.g. silver for Medallion)."""
+    try:
+        root = Path(resolve_project_root(project_root))
+        cfg = load_config(root)
+        return get_architecture_from_config(cfg).default_layer
+    except Exception:
+        return "silver"
 
 
 def _project_root_option(**kwargs):
@@ -198,9 +233,9 @@ def new_etl(
 )
 @click.option(
     "--layer",
-    type=click.Choice(["bronze", "silver", "gold"]),
+    type=click.Choice(_architecture_layers()),
     default=None,
-    help="Layer (bronze, silver, gold). If omitted, ask.",
+    help="Layer (from project architecture). If omitted, ask.",
 )
 @click.option(
     "--project-root",
@@ -219,7 +254,7 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
     if dag is None:
         dag = click.prompt("Choose the DAG", type=click.Choice(dags))
     if layer is None:
-        layer = click.prompt("Layer", type=click.Choice(["bronze", "silver", "gold"]))
+        layer = click.prompt("Layer", type=click.Choice(_architecture_layers(project_root or ".")))
     run_new_migration(
         name=name, dag=dag, layer=layer.lower() if layer else "bronze", project_root=project_root
     )
@@ -230,8 +265,8 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
 @click.argument("table", type=str)
 @click.option(
     "--layer",
-    type=click.Choice(["bronze", "silver"]),
-    default="silver",
+    type=click.Choice(_architecture_layers()),
+    default=None,
     help="Layer for the contract",
 )
 @click.option(
@@ -240,9 +275,11 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
     default=".",
     help="Raiz do projeto",
 )
-def new_contract(schema: str, table: str, layer: str, project_root: str):
+def new_contract(schema: str, table: str, layer: str | None, project_root: str):
     """Create a new Soda contract for an existing table in the given layer."""
     project_root = str(resolve_project_root(project_root))
+    if layer is None:
+        layer = _architecture_default_layer(project_root)
     from airlakeflow.new_contract_cmd import run_new_contract
 
     run_new_contract(schema=schema, table=table, layer=layer, project_root=Path(project_root))
@@ -262,6 +299,91 @@ def new_layer(name: str, project_root: str):
     from airlakeflow.new_layer_cmd import run_new_layer
 
     run_new_layer(name=name, project_root=Path(project_root))
+
+
+@new.command("model")
+@click.argument("name", type=str)
+@click.option(
+    "--layer",
+    type=click.Choice(_architecture_layers(), case_sensitive=False),
+    default=_architecture_default_layer(),
+    help="Layer (from project architecture). Default from architecture.",
+)
+@_project_root_option()
+def new_model(name: str, layer: str, project_root: str):
+    """Create a new model in config/models/ and generate its migration (dags/sql/migrations/)."""
+    root = Path(resolve_project_root(project_root))
+    run_new_model(name=name, layer_name=layer, project_root=root)
+
+
+@main.group()
+def migrations_group():
+    """Generate, apply, list, and check migrations (models ↔ SQL)."""
+    pass
+
+
+main.add_command(migrations_group, "migrations")
+main.add_command(migrations_group, "m")
+
+
+@migrations_group.command("generate")
+@click.option(
+    "--driver",
+    type=str,
+    default=None,
+    help="SQL dialect (postgres, etc.). Default: from config migration_driver",
+)
+@_project_root_option()
+def migrations_generate(project_root: str, driver: str | None):
+    """Generate migration SQL files from config/models/."""
+    root = Path(resolve_project_root(project_root))
+    raise SystemExit(run_migrations_gen(root, driver))
+
+
+@migrations_group.command("up")
+@click.option(
+    "--uri",
+    type=str,
+    default=None,
+    help="Postgres URI. Default: AIRFLOW_CONN_POSTGRES_DATAWAREHOUSE or config",
+)
+@_project_root_option()
+def migrations_up(project_root: str, uri: str | None):
+    """Apply pending migrations to the data warehouse."""
+    root = Path(resolve_project_root(project_root))
+    raise SystemExit(run_migrations_up(root, uri))
+
+
+@migrations_group.command("down")
+@click.option("--dry-run", is_flag=True, help="Only show what would be dropped")
+@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+@click.option("--uri", type=str, default=None, help="Postgres URI")
+@_project_root_option()
+def migrations_down(project_root: str, dry_run: bool, force: bool, uri: str | None):
+    """Rollback last applied migration (with confirmation)."""
+    root = Path(resolve_project_root(project_root))
+    raise SystemExit(
+        run_migrations_down(root, uri, dry_run=dry_run, force=force)
+    )
+
+
+@migrations_group.command("doctor")
+@click.option("--driver", type=str, default=None, help="SQL dialect for comparison")
+@_project_root_option()
+def migrations_doctor(project_root: str, driver: str | None):
+    """Compare models with migrations; report drift."""
+    root = Path(resolve_project_root(project_root))
+    raise SystemExit(run_migrations_doctor(root, driver))
+
+
+@migrations_group.command("align")
+@click.option("--driver", type=str, default=None, help="SQL dialect. Default: from config")
+@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+@_project_root_option()
+def migrations_align(project_root: str, driver: str | None, force: bool):
+    """Align migrations to models (model is reference; overwrites migration files). Asks to confirm when there are differences."""
+    root = Path(resolve_project_root(project_root))
+    raise SystemExit(run_migrations_align(root, driver, force=force))
 
 
 @main.group()
