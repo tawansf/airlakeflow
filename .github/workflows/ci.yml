@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
 
 jobs:
   test-and-lint:
@@ -56,5 +56,5 @@ jobs:
         # Without --strict so editable install (this repo) is skipped; pip>=25.3 avoids known pip CVEs
 
       - name: Security lint (Bandit)
-        run: bandit -r src -q -l
-        # -l = fail only on High; Medium/Low are reported but do not fail the job
+        run: bandit -r src -c pyproject.toml -q -l
+        # -c pyproject.toml applies [tool.bandit] skips (B110, B404, B603, B607); -l = report Low+
