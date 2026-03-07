@@ -56,8 +56,8 @@ def _applied_versions(conn) -> set[str]:
         try:
             # CONTROL_* are constants; no user input in this query
             cur.execute(
-                f"SELECT version FROM {CONTROL_SCHEMA}.{CONTROL_TABLE} ORDER BY version"
-            )  # nosec
+                f"SELECT version FROM {CONTROL_SCHEMA}.{CONTROL_TABLE} ORDER BY version"  # nosec B608
+            )
             return {row[0] for row in cur.fetchall()}
         except Exception:
             return set()
