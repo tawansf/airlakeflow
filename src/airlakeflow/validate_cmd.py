@@ -7,11 +7,13 @@ from pathlib import Path
 
 import click
 
+from airlakeflow.config import get_runtime
 from airlakeflow.style import SYM_FAIL, SYM_OK, secho_fail, secho_heading, secho_ok
 
 # Expected dirs and files for an AirLakeFlow project
 REQUIRED_DIRS = ["dags", "soda", "scripts"]
-REQUIRED_FILES = ["docker-compose.yaml"]
+REQUIRED_FILES_DOCKER = ["docker-compose.yaml"]
+REQUIRED_FILES = REQUIRED_FILES_DOCKER  # default for backward compatibility
 OPTIONAL_FILES = [".env", ".env.example", "Dockerfile", "requirements.txt"]
 # Key files we can sanity-check
 KEY_FILES = [
@@ -86,13 +88,17 @@ def _compose_services_up(project_root: Path) -> tuple[bool, str]:
         return False, "Command timed out"
 
 
-def _structure_ok(project_root: Path) -> tuple[bool, list[str]]:
+def _structure_ok(
+    project_root: Path,
+    required_files: list[str] | None = None,
+) -> tuple[bool, list[str]]:
     """Check required dirs and files. Returns (all_ok, list of missing items)."""
+    files = required_files if required_files is not None else REQUIRED_FILES
     missing = []
     for d in REQUIRED_DIRS:
         if not (project_root / d).is_dir():
             missing.append(f"directory: {d}/")
-    for f in REQUIRED_FILES:
+    for f in files:
         if not (project_root / f).is_file():
             missing.append(f"file: {f}")
     return (len(missing) == 0, missing)
@@ -117,20 +123,22 @@ def run_validate(
     """
     Run validation checks. Returns True if all requested checks pass.
     If verbose, prints each check result to stdout.
+    For runtime=local, docker-compose is not required and Docker/stack checks are skipped.
     """
     root = Path(project_root).resolve()
+    runtime = get_runtime(root)
     all_ok = True
+    required_files: list[str] = REQUIRED_FILES_DOCKER if runtime == "docker" else []
 
     if verbose:
-        secho_heading(f"Validando projeto: {root}\n")
+        secho_heading(f"Validating project: {root}\n")
 
     if check_structure:
-        ok, missing = _structure_ok(root)
+        ok, missing = _structure_ok(root, required_files=required_files)
         if verbose:
+            desc = "dags/, soda/, scripts/" + (", docker-compose.yaml" if runtime == "docker" else "")
             if ok:
-                secho_ok(
-                    f"  {SYM_OK} Project structure (dags/, soda/, scripts/, docker-compose.yaml)"
-                )
+                secho_ok(f"  {SYM_OK} Project structure ({desc})")
             else:
                 secho_fail(f"  {SYM_FAIL} Structure: missing " + ", ".join(missing))
         if not ok:
@@ -147,7 +155,7 @@ def run_validate(
         if not ok2:
             all_ok = False
 
-    if check_docker:
+    if runtime == "docker" and check_docker:
         ok, msg = _docker_available()
         if verbose:
             if ok:
@@ -166,7 +174,7 @@ def run_validate(
             if not ok2:
                 all_ok = False
 
-    if check_stack_up and (root / "docker-compose.yaml").exists():
+    if runtime == "docker" and check_stack_up and (root / "docker-compose.yaml").exists():
         ok, msg = _compose_services_up(root)
         if verbose:
             if ok:
@@ -179,7 +187,7 @@ def run_validate(
     if verbose:
         click.echo()
         if all_ok:
-            secho_ok(f"{SYM_OK} Validação passou.")
+            secho_ok(f"{SYM_OK} Validation passed.")
         else:
             secho_fail(
                 f"{SYM_FAIL} Validation failed. Fix the items above and run 'alf validate' again."

@@ -8,8 +8,10 @@ from pathlib import Path
 
 import click
 
-from airlakeflow.style import secho_dim, secho_fail, secho_heading, secho_ok, secho_warn
+from airlakeflow.config import get_runtime
+from airlakeflow.style import secho_dim, secho_fail, secho_heading, secho_info, secho_ok, secho_warn
 from airlakeflow.validate_cmd import (
+    REQUIRED_FILES_DOCKER,
     _compose_available,
     _compose_services_up,
     _docker_available,
@@ -21,10 +23,13 @@ from airlakeflow.validate_cmd import (
 def run_doctor(project_root: Path, verbose: bool = True) -> bool:
     """Run all checks and print suggestions for fixing issues. Returns True if everything OK."""
     root = Path(project_root).resolve()
+    runtime = get_runtime(root)
     all_ok = True
+    required_files = REQUIRED_FILES_DOCKER if runtime == "docker" else []
 
     if verbose:
         secho_heading(f"Doctor: checking project at {root}\n")
+        secho_info(f"  Runtime: {runtime}\n")
 
     # 1. Python version
     ver = sys.version_info
@@ -38,10 +43,11 @@ def run_doctor(project_root: Path, verbose: bool = True) -> bool:
         all_ok = False
 
     # 2. Structure
-    ok, missing = _structure_ok(root)
+    ok, missing = _structure_ok(root, required_files=required_files)
     if verbose:
+        desc = "dags/, soda/, scripts/" + (", docker-compose.yaml" if runtime == "docker" else "")
         if ok:
-            secho_ok("  [OK] Project structure (dags/, soda/, scripts/, docker-compose.yaml)")
+            secho_ok(f"  [OK] Project structure ({desc})")
         else:
             secho_fail("  [FAIL] Missing: " + ", ".join(missing))
             secho_dim("        Fix: run from an AirLakeFlow project root or use 'alf init <name>'.")
@@ -57,36 +63,40 @@ def run_doctor(project_root: Path, verbose: bool = True) -> bool:
     if not ok2:
         all_ok = False
 
-    # 3. Docker
-    ok, msg = _docker_available()
-    if verbose:
-        if ok:
-            secho_ok("  [OK] Docker: " + msg)
-        else:
-            secho_fail("  [FAIL] Docker: " + msg)
-            secho_dim("        Fix: install Docker and start the daemon.")
-    if not ok:
-        all_ok = False
-    else:
-        ok2, msg2 = _compose_available(root)
-        if verbose:
-            if ok2:
-                secho_ok("  [OK] Docker Compose: " + msg2)
-            else:
-                secho_fail("  [FAIL] Docker Compose: " + msg2)
-        if not ok2:
-            all_ok = False
-
-    # 4. Stack
-    if (root / "docker-compose.yaml").exists():
-        ok, msg = _compose_services_up(root)
+    # 3. Docker (only for docker runtime)
+    if runtime == "docker":
+        ok, msg = _docker_available()
         if verbose:
             if ok:
-                secho_ok("  [OK] Stack: " + msg)
+                secho_ok("  [OK] Docker: " + msg)
             else:
-                secho_fail("  [FAIL] Stack: " + msg)
+                secho_fail("  [FAIL] Docker: " + msg)
+                secho_dim("        Fix: install Docker and start the daemon.")
         if not ok:
             all_ok = False
+        else:
+            ok2, msg2 = _compose_available(root)
+            if verbose:
+                if ok2:
+                    secho_ok("  [OK] Docker Compose: " + msg2)
+                else:
+                    secho_fail("  [FAIL] Docker Compose: " + msg2)
+            if not ok2:
+                all_ok = False
+
+        # 4. Stack
+        if (root / "docker-compose.yaml").exists():
+            ok, msg = _compose_services_up(root)
+            if verbose:
+                if ok:
+                    secho_ok("  [OK] Stack: " + msg)
+                else:
+                    secho_fail("  [FAIL] Stack: " + msg)
+            if not ok:
+                all_ok = False
+    else:
+        if verbose:
+            secho_ok("  [OK] Local runtime — run: alf run")
 
     # 5. .env and AIRFLOW_UID (Unix)
     try:

@@ -5,7 +5,7 @@ Medallion-style data pipeline (Bronze / Silver / Gold) with Airflow and Soda.
 ## Structure
 
 - `dags/` – Airflow DAGs and `setup_database.py` (runs SQL migrations from `dags/sql/migrations/`)
-- `dags/crypto/` – **Pipeline demo** (Bronze → Silver → Gold) com dados **mock** — rode de cara para ver o fluxo completo
+- `dags/crypto/` – **Pipeline demo** (Bronze → Silver → Gold) with **mock** data — run it to see the full flow
 - `soda/` – Soda config and data quality contracts
 - `scripts/` – Postgres init (e.g. create `datawarehouse` database)
 - `config/`, `plugins/`, `data/` – Airflow config, plugins, and data dirs
@@ -16,7 +16,7 @@ Medallion-style data pipeline (Bronze / Silver / Gold) with Airflow and Soda.
 2. Start the stack: `alf run` (or `docker compose up -d`).
 3. Open Airflow UI at http://localhost:8080 (user/password: airflow).
 4. Run the **setup** DAG once: `00_setup_database_migrations` (creates bronze/silver/gold schemas and tables).
-5. Run the **demo** DAG: `crypto_pipeline` — usa dados mock, sem API externa. Depois replique as regras em suas próprias pipelines.
+5. Run the **demo** DAG: `crypto_pipeline` — uses mock data, no external API. Then replicate the logic in your own pipelines.
 6. Add your own pipelines with `alf new etl <name>` and migrations with `alf new migration <name>`.
 
 ## Models and migrations (optional)

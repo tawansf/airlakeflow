@@ -1,4 +1,4 @@
-# Data contract - Bronze Bitcoin (demo com dados mock)
+# Data contract - Bronze Bitcoin (demo with mock data)
 dataset: postgres_datawarehouse/datawarehouse/bronze/bitcoin_raw
 
 checks:

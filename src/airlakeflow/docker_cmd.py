@@ -10,7 +10,24 @@ from pathlib import Path
 
 import click
 
+from airlakeflow.config import get_runtime
 from airlakeflow.style import fail, secho_fail, secho_info, secho_ok, secho_warn
+
+
+def _require_docker_runtime(project_root: Path) -> None:
+    """If project runtime is 'local', print message and exit with 1. No-op for docker."""
+    root = Path(project_root).resolve()
+    if get_runtime(root) == "local":
+        click.echo(
+            fail(
+                "This project is configured for local run (no Docker).\n"
+                "To start Airflow: alf run  (installs deps and runs airflow db init + standalone)\n"
+                "Or manually: pip install -r requirements.txt  then  airflow db init  then  airflow standalone\n"
+                "To use Docker instead: create a new project with  alf init -w <name>"
+            ),
+            err=True,
+        )
+        sys.exit(1)
 
 
 def _ensure_compose(project_root: Path) -> None:
@@ -258,6 +275,7 @@ def _compose(project_root: Path, *args: str, stream: bool = False) -> int:
 def run_up(project_root: Path, detach: bool = True, build: bool = False) -> int:
     """Start the stack: docker compose up [-d] [--build]. On port conflict, retries with next free port."""
     root = Path(project_root).resolve()
+    _require_docker_runtime(root)
     _ensure_env(root)
     _sync_airflow_uid(root)  # Unix: .env AIRFLOW_UID = current user (evita PermissionError em logs)
     _ensure_logs(root)
@@ -297,12 +315,15 @@ def run_up(project_root: Path, detach: bool = True, build: bool = False) -> int:
 
 def run_stop(project_root: Path) -> int:
     """Stop containers: docker compose stop. Returns exit code."""
-    return _compose(Path(project_root).resolve(), "stop")
+    root = Path(project_root).resolve()
+    _require_docker_runtime(root)
+    return _compose(root, "stop")
 
 
 def run_restart(project_root: Path) -> int:
     """Restart: stop then up -d. Returns exit code."""
     root = Path(project_root).resolve()
+    _require_docker_runtime(root)
     code = _compose(root, "stop")
     if code != 0:
         return code
@@ -311,30 +332,37 @@ def run_restart(project_root: Path) -> int:
 
 def run_down(project_root: Path, volumes: bool = False) -> int:
     """Tear down: docker compose down [--volumes]. Returns exit code."""
+    root = Path(project_root).resolve()
+    _require_docker_runtime(root)
     args = ["down"]
     if volumes:
         args.append("--volumes")
-    return _compose(Path(project_root).resolve(), *args)
+    return _compose(root, *args)
 
 
 def run_logs(project_root: Path, follow: bool = False, service: str | None = None) -> int:
     """Show logs: docker compose logs [-f] [service]. Returns exit code."""
+    root = Path(project_root).resolve()
+    _require_docker_runtime(root)
     args = ["logs"]
     if follow:
         args.append("-f")
     if service:
         args.append(service)
-    return _compose(Path(project_root).resolve(), *args, stream=True)
+    return _compose(root, *args, stream=True)
 
 
 def run_ps(project_root: Path) -> int:
     """List services: docker compose ps. Returns exit code."""
-    return _compose(Path(project_root).resolve(), "ps", stream=True)
+    root = Path(project_root).resolve()
+    _require_docker_runtime(root)
+    return _compose(root, "ps", stream=True)
 
 
 def run_exec(project_root: Path, service: str, cmd: list[str]) -> int:
     """Run a command inside a service container: docker compose exec SERVICE CMD. Returns exit code."""
     root = Path(project_root).resolve()
+    _require_docker_runtime(root)
     _ensure_compose(root)
     full_cmd = ["docker", "compose", "exec", service] + cmd
     r = subprocess.run(full_cmd, cwd=root)
@@ -344,6 +372,9 @@ def run_exec(project_root: Path, service: str, cmd: list[str]) -> int:
 def run_status(project_root: Path) -> int:
     """Print a short status summary (how many services up). Returns 0 if stack up, 1 otherwise."""
     root = Path(project_root).resolve()
+    if get_runtime(root) == "local":
+        secho_fail("This project is configured for local run. Use: alf run")
+        return 1
     compose_file = root / "docker-compose.yaml"
     if not compose_file.exists():
         secho_fail("No docker-compose.yaml in project.")

@@ -1,14 +1,14 @@
-from pathlib import Path
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 from airlakeflow.docker_cmd import create_env_from_example
 from airlakeflow.style import SYM_OK, secho_info, secho_ok
 
 
 def _default_model_content(layer: str) -> str:
-    return f'''"""Model de exemplo ({layer}). Edite ou crie novos com 'alf new model NAME'."""
+    return f'''"""Example model ({layer}). Edit or create new ones with 'alf new model NAME'."""
 
 from airlakeflow.models import Model, Field, layer
 
@@ -35,10 +35,12 @@ def run_init(
     with_monitoring: bool,
     backend: str = "pandas",
     use_minimal_stack: bool = False,
+    use_docker: bool = True,
 ) -> None:
     """Create a new project: folder with framework structure (from repo or package skeleton).
     backend: 'pandas' (lighter, default) or 'pyspark' (distributed processing).
-    use_minimal_stack: True = LocalExecutor, 4 containers; False = CeleryExecutor, 7 containers.
+    use_minimal_stack: True = LocalExecutor, 4 containers; False = CeleryExecutor, 7 containers (Docker only).
+    use_docker: True = Docker Compose stack (default); False = local run (no compose). Runtime is locked per project.
     """
     cwd = Path.cwd().resolve()
     # If dest is a simple name (no path sep), create folder inside cwd
@@ -66,23 +68,11 @@ def run_init(
         "data",
         "logs",
     ]
-    # Choose compose and image: minimal stack = LocalExecutor, lighter image when pandas + no Soda
-    if use_minimal_stack:
-        _minimal_yaml = framework_root / "docker-compose.minimal.yaml"
-        compose_src = (
-            _minimal_yaml
-            if _minimal_yaml.exists()
-            else _skeleton_dir / "docker-compose.minimal.yaml"
-        )
-        use_light_image = backend == "pandas" and not with_monitoring
-    else:
-        compose_src = framework_root / "docker-compose.yaml"
-        use_light_image = False
+    runtime = "local" if not use_docker else "docker"
+    files_to_copy = ["README.md"]
+    if use_docker:
+        files_to_copy.append(".env.example")
 
-    files_to_copy = [
-        ".env.example",
-        "README.md",
-    ]
     dest_path.mkdir(parents=True, exist_ok=True)
     for d in dirs_to_copy:
         src = framework_root / d
@@ -99,40 +89,68 @@ def run_init(
             )
     for f in files_to_copy:
         src = framework_root / f
+        if not src.exists() and (_skeleton_dir / f).exists():
+            src = _skeleton_dir / f
         if src.exists():
             shutil.copy2(src, dest_path / f)
 
-    # Compose: minimal or full
-    if compose_src.exists():
-        shutil.copy2(compose_src, dest_path / "docker-compose.yaml")
-    elif (framework_root / "docker-compose.yaml").exists():
-        shutil.copy2(framework_root / "docker-compose.yaml", dest_path / "docker-compose.yaml")
-
-    # Dockerfile + requirements: light image only for minimal + pandas + no monitoring
-    _df_min = framework_root / "Dockerfile.minimal"
-    if not _df_min.exists():
-        _df_min = _skeleton_dir / "Dockerfile.minimal"
-    if use_light_image and _df_min.exists():
-        shutil.copy2(_df_min, dest_path / "Dockerfile")
-        _req_min = framework_root / "requirements.minimal.txt"
-        req_src = _req_min if _req_min.exists() else _skeleton_dir / "requirements.minimal.txt"
-        if req_src.exists():
-            shutil.copy2(req_src, dest_path / "requirements.txt")
-        elif (framework_root / "requirements.txt").exists():
-            shutil.copy2(framework_root / "requirements.txt", dest_path / "requirements.txt")
+    # Docker path: copy compose, Dockerfile, .env
+    if use_docker:
+        if use_minimal_stack:
+            _minimal_yaml = framework_root / "docker-compose.minimal.yaml"
+            compose_src = (
+                _minimal_yaml
+                if _minimal_yaml.exists()
+                else _skeleton_dir / "docker-compose.minimal.yaml"
+            )
+            use_light_image = backend == "pandas" and not with_monitoring
+        else:
+            compose_src = framework_root / "docker-compose.yaml"
+            use_light_image = False
+        if compose_src.exists():
+            shutil.copy2(compose_src, dest_path / "docker-compose.yaml")
+        elif (framework_root / "docker-compose.yaml").exists():
+            shutil.copy2(framework_root / "docker-compose.yaml", dest_path / "docker-compose.yaml")
+        _df_min = framework_root / "Dockerfile.minimal"
+        if not _df_min.exists():
+            _df_min = _skeleton_dir / "Dockerfile.minimal"
+        if use_light_image and _df_min.exists():
+            shutil.copy2(_df_min, dest_path / "Dockerfile")
+            _req_min = framework_root / "requirements.minimal.txt"
+            req_src = _req_min if _req_min.exists() else _skeleton_dir / "requirements.minimal.txt"
+            if req_src.exists():
+                shutil.copy2(req_src, dest_path / "requirements.txt")
+            elif (framework_root / "requirements.txt").exists():
+                shutil.copy2(framework_root / "requirements.txt", dest_path / "requirements.txt")
+        else:
+            if (framework_root / "Dockerfile").exists():
+                shutil.copy2(framework_root / "Dockerfile", dest_path / "Dockerfile")
+            if (framework_root / "requirements.txt").exists():
+                shutil.copy2(framework_root / "requirements.txt", dest_path / "requirements.txt")
+        if create_env_from_example(dest_path):
+            secho_info("  ▸ .env created with AIRFLOW_UID for this machine")
     else:
-        if (framework_root / "Dockerfile").exists():
-            shutil.copy2(framework_root / "Dockerfile", dest_path / "Dockerfile")
-        if (framework_root / "requirements.txt").exists():
-            shutil.copy2(framework_root / "requirements.txt", dest_path / "requirements.txt")
+        # Local: requirements for Airflow + backend only
+        _req_local = _skeleton_dir / "requirements.local.txt"
+        if _req_local.exists():
+            shutil.copy2(_req_local, dest_path / "requirements.txt")
+        else:
+            # Fallback: minimal deps for local run
+            (dest_path / "requirements.txt").write_text(
+                "apache-airflow>=2.7.0\n"
+                "psycopg2-binary>=2.9.0\n"
+                "pandas>=2.0.0\n",
+                encoding="utf-8",
+            )
 
-    # Silver backend: write config and adjust requirements
+    # Silver backend and runtime (locked per project)
     backend = backend.lower().strip()
     if backend not in ("pandas", "pyspark"):
         backend = "pandas"
     config_path = dest_path / ".airlakeflow.yaml"
     config_path.write_text(
-        f"""# AirLakeFlow project config
+        f"""# AirLakeFlow project config (runtime is set at init and should not be changed)
+runtime: {runtime}
 silver_backend: {backend}
 architecture: medallion
 # soda_data_source: postgres_datawarehouse
@@ -147,11 +165,6 @@ architecture: medallion
         if backend == "pyspark" and "pyspark" not in text:
             text = text.rstrip() + "\n\n# Distributed processing (chosen at init)\npyspark>=3.5.0\n"
             req_path.write_text(text, encoding="utf-8")
-        # If pandas, leave requirements as-is (skeleton has no pyspark by default)
-
-    # Create .env with AIRFLOW_UID = current user (Unix) or 50000 (Windows) so alf run works without permission errors
-    if create_env_from_example(dest_path):
-        secho_info("  ▸ .env created with AIRFLOW_UID for this machine")
 
     if not with_demo:
         for name in ("crypto",):
@@ -217,10 +230,13 @@ architecture: medallion
     secho_ok(f"{SYM_OK} Project created: {dest_path}")
     if framework_root.name == "skeleton":
         secho_info("  (AirLakeFlow package structure)")
-    if use_minimal_stack:
-        secho_info("  ▸ Stack: minimal (LocalExecutor, 4 containers)")
-    if use_light_image:
-        secho_info("  ▸ Image: minimal (no Java, requirements.minimal)")
+    if use_docker:
+        if use_minimal_stack:
+            secho_info("  ▸ Stack: minimal (LocalExecutor, 4 containers)")
+        if backend == "pandas" and not with_monitoring and use_minimal_stack:
+            secho_info("  ▸ Image: minimal (no Java, requirements.minimal)")
+    else:
+        secho_info("  ▸ Runtime: local (no Docker). Run: alf run  (or: pip install -r requirements.txt then airflow db init && airflow standalone)")
     if with_demo and (dest_path / "dags" / "crypto").exists():
         secho_info("  ▸ Demo DAG (crypto) included")
     if with_monitoring and (dest_path / "dags" / "monitoring").exists():

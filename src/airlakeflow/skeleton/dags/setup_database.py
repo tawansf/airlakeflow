@@ -31,6 +31,9 @@ def _migration_task_id(filename: str) -> str:
 
 migration_files = _discover_migrations()
 
+# Create bronze/silver/gold schemas first (in case scripts/ did not run, e.g. local or reused volume).
+INIT_SCHEMAS_SQL = "../scripts/002_create_schemas.sql"
+
 with DAG(
     dag_id="00_setup_database_migrations",
     start_date=datetime(2026, 2, 10),
@@ -39,6 +42,11 @@ with DAG(
     default_args=default_args_setup,
     tags=["setup", "migration"],
 ) as dag:
+    init_schemas = PostgresOperator(
+        task_id="init_schemas",
+        postgres_conn_id="postgres_datawarehouse",
+        sql=INIT_SCHEMAS_SQL,
+    )
     tasks = []
     for i, filename in enumerate(migration_files):
         task_id = _migration_task_id(filename)
@@ -51,3 +59,5 @@ with DAG(
         tasks.append(op)
     for i in range(1, len(tasks)):
         tasks[i - 1] >> tasks[i]
+    if tasks:
+        init_schemas >> tasks[0]

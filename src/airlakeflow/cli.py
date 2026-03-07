@@ -1,5 +1,5 @@
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import click
 
@@ -7,6 +7,7 @@ from airlakeflow import __version__ as _pkg_version
 from airlakeflow.add_soda import run_add_soda
 from airlakeflow.config import (
     get_architecture_from_config,
+    get_runtime,
     load_config,
     resolve_project_root,
 )
@@ -22,11 +23,20 @@ from airlakeflow.docker_cmd import (
 )
 from airlakeflow.doctor_cmd import run_doctor
 from airlakeflow.init_cmd import run_init
+from airlakeflow.local_cmd import run_local
 from airlakeflow.migrations_cmd import (
     run_align as run_migrations_align,
+)
+from airlakeflow.migrations_cmd import (
     run_doctor as run_migrations_doctor,
+)
+from airlakeflow.migrations_cmd import (
     run_down as run_migrations_down,
+)
+from airlakeflow.migrations_cmd import (
     run_gen as run_migrations_gen,
+)
+from airlakeflow.migrations_cmd import (
     run_up as run_migrations_up,
 )
 from airlakeflow.new_etl import run_new_etl
@@ -96,7 +106,7 @@ def _get_version() -> str:
 
 @click.group(cls=AlfGroup, invoke_without_command=True, add_help_option=False)
 @click.pass_context
-def main(ctx: click.Context):
+def _cli(ctx: click.Context):
     """AirLakeFlow — CLI for the framework (Bronze / Silver / Gold)."""
     if ctx.invoked_subcommand is None:
         print_banner(_get_version())
@@ -104,7 +114,7 @@ def main(ctx: click.Context):
         ctx.exit(0)
 
 
-@main.command("help", help="Show this message and exit.")
+@_cli.command("help", help="Show this message and exit.")
 @click.pass_context
 def _show_help(ctx: click.Context):
     """Show main group help (alf help / alf h)."""
@@ -112,34 +122,34 @@ def _show_help(ctx: click.Context):
     ctx.exit(0)
 
 
-@main.command("h", hidden=True)
+@_cli.command("h", hidden=True)
 @click.pass_context
 def _show_help_h(ctx: click.Context):
     click.echo(ctx.parent.get_help())
     ctx.exit(0)
 
 
-@main.command("version", help="Show version and exit.")
+@_cli.command("version", help="Show version and exit.")
 @click.pass_context
 def _show_version(ctx: click.Context):
     click.echo(f"AirLakeFlow {_get_version()}")
     ctx.exit(0)
 
 
-@main.command("v", hidden=True)
+@_cli.command("v", hidden=True)
 @click.pass_context
 def _show_version_v(ctx: click.Context):
     click.echo(f"AirLakeFlow {_get_version()}")
     ctx.exit(0)
 
 
-@main.group()
+@_cli.group()
 def new():
     """Create new resource (ETL, Migration, Contract, Layer)."""
     pass
 
 
-@main.group("list")
+@_cli.group("list")
 def list_group():
     """List project resources (ETLs, etc.)."""
     pass
@@ -357,14 +367,14 @@ def new_model(name: str, layer: str, project_root: str):
     run_new_model(name=name, layer_name=layer, project_root=root)
 
 
-@main.group()
+@_cli.group()
 def migrations_group():
     """Generate, apply, list, and check migrations (models ↔ SQL)."""
     pass
 
 
-main.add_command(migrations_group, "migrations")
-main.add_command(migrations_group, "m")
+_cli.add_command(migrations_group, "migrations")
+_cli.add_command(migrations_group, "m")
 
 
 @migrations_group.command("generate")
@@ -427,7 +437,7 @@ def migrations_align(project_root: str, driver: str | None, force: bool):
     raise SystemExit(run_migrations_align(root, driver, force=force))
 
 
-@main.group()
+@_cli.group()
 def add():
     """Add quality integration (Soda, Great Expectations, etc.) to the project."""
     pass
@@ -469,7 +479,7 @@ def add_greatxp(etl: str | None, all_etls: bool, project_root: str):
     secho_warn("alf add greatxp: in development.")
 
 
-@main.command("validate")
+@_cli.command("validate")
 @click.option(
     "-r",
     "project_root",
@@ -496,7 +506,7 @@ def validate(project_root: str, no_docker: bool, no_stack: bool, quiet: bool):
         raise SystemExit(1)
 
 
-@main.command("doctor")
+@_cli.command("doctor")
 @click.option(
     "-r",
     "project_root",
@@ -513,7 +523,7 @@ def doctor(project_root: str, quiet: bool):
         raise SystemExit(1)
 
 
-@main.command("status")
+@_cli.command("status")
 @_project_root_option()
 def status(project_root: str):
     """Show stack status summary (how many services running)."""
@@ -522,7 +532,7 @@ def status(project_root: str):
     raise SystemExit(code)
 
 
-@main.command("exec")
+@_cli.command("exec")
 @_project_root_option()
 @click.argument("service", type=str)
 @click.argument("command", nargs=-1, required=True)
@@ -533,7 +543,7 @@ def exec_cmd(project_root: str, service: str, command: tuple[str, ...]):
     raise SystemExit(code)
 
 
-@main.command("upgrade")
+@_cli.command("upgrade")
 @_project_root_option()
 @click.option("-n", "dry_run", is_flag=True, help="Only show what would be updated")
 @click.option("-B", "no_backup", is_flag=True, help="Do not backup files before overwriting")
@@ -543,18 +553,21 @@ def upgrade(project_root: str, dry_run: bool, no_backup: bool):
     run_upgrade(Path(project_root), dry_run=dry_run, backup=not no_backup)
 
 
-@main.command("run")
+@_cli.command("run")
 @_project_root_option()
-@click.option("-b", "build", is_flag=True, help="Build images before starting")
-@click.option("-f", "foreground", is_flag=True, help="Run in foreground (no -d)")
+@click.option("-b", "build", is_flag=True, help="Build images before starting (Docker only)")
+@click.option("-f", "foreground", is_flag=True, help="Run in foreground (Docker: no -d; local: always foreground)")
 def run(project_root: str, build: bool, foreground: bool):
-    """Start the application (docker compose up -d)."""
-    project_root = str(resolve_project_root(project_root))
-    code = run_up(Path(project_root), detach=not foreground, build=build)
+    """Start the application (Docker: compose up; local: install deps, airflow db init, airflow standalone)."""
+    root = Path(resolve_project_root(project_root))
+    if get_runtime(root) == "local":
+        code = run_local(root)
+    else:
+        code = run_up(root, detach=not foreground, build=build)
     raise SystemExit(code)
 
 
-@main.command("stop")
+@_cli.command("stop")
 @_project_root_option()
 def stop(project_root: str):
     """Stop the application (docker compose stop)."""
@@ -563,7 +576,7 @@ def stop(project_root: str):
     raise SystemExit(code)
 
 
-@main.command("restart")
+@_cli.command("restart")
 @_project_root_option()
 def restart(project_root: str):
     """Restart the application (stop then up -d)."""
@@ -572,7 +585,7 @@ def restart(project_root: str):
     raise SystemExit(code)
 
 
-@main.command("down")
+@_cli.command("down")
 @_project_root_option()
 @click.option("-v", "volumes", is_flag=True, help="Remove named Docker volumes")
 def down(project_root: str, volumes: bool):
@@ -582,7 +595,7 @@ def down(project_root: str, volumes: bool):
     raise SystemExit(code)
 
 
-@main.command("logs")
+@_cli.command("logs")
 @_project_root_option()
 @click.option("-f", "follow", is_flag=True, help="Follow Docker logs output")
 @click.argument("service", required=False, default=None)
@@ -593,7 +606,7 @@ def logs(project_root: str, follow: bool, service: str | None):
     raise SystemExit(code)
 
 
-@main.command("ps")
+@_cli.command("ps")
 @_project_root_option()
 def ps(project_root: str):
     """List running services (docker compose ps)."""
@@ -602,7 +615,7 @@ def ps(project_root: str):
     raise SystemExit(code)
 
 
-@main.command("init")
+@_cli.command("init")
 @click.argument("project_name", type=str, default=".", required=False)
 @click.option(
     "-d",
@@ -642,11 +655,26 @@ def ps(project_root: str):
     help="Silver layer: pandas or pyspark. If omitted, init will ask interactively.",
 )
 @click.option(
+    "-w",
+    "use_docker",
+    is_flag=True,
+    default=None,
+    flag_value=True,
+    help="Use Docker (compose). If omitted, init will ask.",
+)
+@click.option(
+    "-W",
+    "no_docker",
+    is_flag=True,
+    default=None,
+    help="No Docker (local run). Runtime is locked per project.",
+)
+@click.option(
     "-s",
     "use_minimal_stack",
     type=click.Choice(["minimal", "full"], case_sensitive=False),
     default=None,
-    help="Stack: minimal (4 containers) or full (7). If omitted, init will ask.",
+    help="Stack: minimal (4 containers) or full (7). Docker only; if omitted, init will ask when Docker.",
 )
 def init(
     project_name: str,
@@ -655,6 +683,8 @@ def init(
     with_monitoring: bool | None,
     no_monitoring: bool | None,
     backend: str | None,
+    use_docker: bool | None,
+    no_docker: bool | None,
     use_minimal_stack: str | None,
 ):
     """Create a new project. Run without flags to choose options interactively."""
@@ -662,100 +692,162 @@ def init(
         demo = False
     if no_monitoring:
         with_monitoring = False
+    if no_docker:
+        use_docker = False
     if use_minimal_stack is not None:
         use_minimal_stack = use_minimal_stack == "minimal"
     interactive = sys.stdin.isatty()
     try:
         import questionary
+        from questionary import Style
 
         _has_select = True
+        # First item in each list is the default (no default= needed — avoids the
+        # "selected" token branch in InquirerControl which conflicts with highlighted).
+        _select_style = Style([
+            ("qmark", "fg:#5f819d"),
+            ("question", "bold"),
+            ("answer", "fg:#FF9D00 bold"),
+            ("pointer", "bold fg:cyan"),
+            ("highlighted", "bold fg:cyan"),
+            ("selected", ""),
+            ("text", ""),
+            ("instruction", ""),
+        ])
     except ImportError:
         _has_select = False
+        _select_style = None
 
-    if demo is None:
+    # 1. Runtime (Docker vs local) — defines how the project runs
+    if use_docker is None:
         if interactive and _has_select:
             choice = questionary.select(
-                "Incluir DAGs de demonstração (crypto)?",
+                "Run with Docker or locally (no Docker)?",
                 choices=[
-                    questionary.Choice("Yes", value=True),
-                    questionary.Choice("No", value=False),
+                    # Docker first = default
+                    questionary.Choice("Docker (compose)", value=True),
+                    questionary.Choice("Local (no Docker)", value=False),
                 ],
-                default=True,
                 pointer="→",
+                style=_select_style,
             ).ask()
-            demo = choice if choice is not None else True
+            if choice is None:
+                raise KeyboardInterrupt
+            use_docker = choice
+        elif interactive:
+            use_docker = click.confirm("Run with Docker (compose)?", default=True)
         else:
-            demo = (
-                click.confirm("Incluir DAGs de demonstração (crypto)?", default=True)
-                if interactive
-                else True
-            )
-    if with_monitoring is None:
+            use_docker = True
+    # 2. Stack version (Docker only)
+    if use_docker and use_minimal_stack is None:
         if interactive and _has_select:
             choice = questionary.select(
-                "Adicionar Soda (qualidade de dados)?",
+                "Stack version",
                 choices=[
-                    questionary.Choice("Yes", value=True),
-                    questionary.Choice("No", value=False),
+                    # minimal first = default
+                    questionary.Choice("minimal (4 containers, LocalExecutor)", value="minimal"),
+                    questionary.Choice("full (7 containers, Celery)", value="full"),
                 ],
-                default=False,
                 pointer="→",
+                style=_select_style,
             ).ask()
-            with_monitoring = choice if choice is not None else False
-        else:
-            with_monitoring = (
-                click.confirm("Adicionar Soda (qualidade de dados)?", default=False)
-                if interactive
-                else False
+            if choice is None:
+                raise KeyboardInterrupt
+            use_minimal_stack = (choice or "minimal") == "minimal"
+        elif interactive:
+            stack_choice = click.prompt(
+                "Stack: minimal (4 containers) or full (7)?",
+                type=click.Choice(["minimal", "full"], case_sensitive=False),
+                default="minimal",
+                show_choices=True,
+                show_default=True,
             )
+            use_minimal_stack = stack_choice == "minimal"
+        else:
+            use_minimal_stack = True
+    # 3. Silver layer backend
     if backend is None:
         if interactive and _has_select:
             choice = questionary.select(
-                "Backend da camada Silver",
+                "Silver layer backend",
                 choices=[
+                    # pandas first = default
                     questionary.Choice("pandas (lightweight, single machine)", value="pandas"),
                     questionary.Choice("pyspark (distributed)", value="pyspark"),
                 ],
-                default="pandas",
                 pointer="→",
+                style=_select_style,
             ).ask()
-            backend = choice if choice else "pandas"
+            if choice is None:
+                raise KeyboardInterrupt
+            backend = choice
         elif interactive:
             backend = click.prompt(
-                "Backend da camada Silver",
+                "Silver layer backend",
                 type=click.Choice(["pandas", "pyspark"], case_sensitive=False),
                 default="pandas",
                 show_choices=True,
             )
         else:
             backend = "pandas"
-    if use_minimal_stack is None:
+    # 4. Soda (data quality)
+    if with_monitoring is None:
         if interactive and _has_select:
             choice = questionary.select(
-                "Versão do projeto",
+                "Add Soda (data quality)?",
                 choices=[
-                    questionary.Choice("minimal (4 containers, LocalExecutor)", value="minima"),
-                    questionary.Choice("full (7 containers, Celery)", value="completa"),
+                    # No first = default (was default=False)
+                    questionary.Choice("No", value=False),
+                    questionary.Choice("Yes", value=True),
                 ],
-                default="minima",
                 pointer="→",
+                style=_select_style,
             ).ask()
-            use_minimal_stack = (choice or "minima") == "minima"
-        elif interactive:
-            stack_choice = click.prompt(
-                "Versão do projeto: mínima (4 containers, LocalExecutor) ou completa (7 containers, Celery)?",
-                type=click.Choice(["minima", "completa"], case_sensitive=False),
-                default="minima",
-                show_choices=True,
-                show_default=True,
-            )
-            use_minimal_stack = stack_choice == "minima"
+            if choice is None:
+                raise KeyboardInterrupt
+            with_monitoring = choice
         else:
-            use_minimal_stack = True
+            with_monitoring = (
+                click.confirm("Add Soda (data quality)?", default=False)
+                if interactive
+                else False
+            )
+    # 5. Demo DAGs (crypto)
+    if demo is None:
+        if interactive and _has_select:
+            choice = questionary.select(
+                "Include demo DAGs (crypto)?",
+                choices=[
+                    # Yes first = default (was default=True)
+                    questionary.Choice("Yes", value=True),
+                    questionary.Choice("No", value=False),
+                ],
+                pointer="→",
+                style=_select_style,
+            ).ask()
+            if choice is None:
+                raise KeyboardInterrupt
+            demo = choice
+        else:
+            demo = (
+                click.confirm("Include demo DAGs (crypto)?", default=True)
+                if interactive
+                else True
+            )
     run_init(
         dest=project_name,
         with_demo=demo,
         with_monitoring=with_monitoring,
         backend=backend,
-        use_minimal_stack=use_minimal_stack,
+        use_minimal_stack=use_minimal_stack if use_docker else False,
+        use_docker=use_docker,
     )
+
+
+def main():
+    """Entry point: run CLI; on Ctrl+C exit with code 130."""
+    try:
+        _cli()
+    except KeyboardInterrupt:
+        click.echo("\nAborted.", err=True)
+        sys.exit(130)

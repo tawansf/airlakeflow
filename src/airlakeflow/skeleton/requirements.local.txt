@@ -1,0 +1,6 @@
+# Local run (no Docker). Install in .venv then: alf run (or airflow db init && airflow standalone)
+# SQLAlchemy is not pinned here; Airflow 2.10 uses SQLAlchemy 1.4.x via its constraints.
+apache-airflow>=2.10.0,<3
+apache-airflow-providers-postgres>=5.0.0
+pandas>=2.0.0
+psycopg2-binary>=2.9.0

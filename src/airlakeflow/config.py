@@ -24,6 +24,7 @@ DEFAULT_SODA_CONFIG_PATH = "soda/configuration.yaml"
 DEFAULT_CONTRACTS_DIR = "soda/contracts"
 DEFAULT_MIGRATION_DRIVER = "postgres"
 DEFAULT_ARCHITECTURE = "medallion"
+DEFAULT_RUNTIME = "docker"  # docker | local; set at init, locked per project
 
 
 def _find_config_dir(start: Path) -> Path | None:
@@ -81,6 +82,13 @@ def get_soda_config_path(config: dict[str, Any]) -> str:
 def get_contracts_dir(config: dict[str, Any]) -> str:
     """Return path to Soda contracts directory from config, or default."""
     return config.get("contracts_dir") or DEFAULT_CONTRACTS_DIR
+
+
+def get_runtime(project_root: Path) -> str:
+    """Return runtime: 'docker' or 'local'. Set at init; do not change per project."""
+    cfg = load_config(Path(project_root).resolve())
+    r = (cfg.get("runtime") or DEFAULT_RUNTIME).strip().lower()
+    return r if r in ("docker", "local") else DEFAULT_RUNTIME
 
 
 def get_migration_driver(config: dict[str, Any]) -> str:

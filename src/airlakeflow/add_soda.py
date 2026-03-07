@@ -51,9 +51,9 @@ def _ensure_project_soda(project_root: Path) -> None:
     if not persistence_path.exists():
         monitoring_dir.mkdir(parents=True, exist_ok=True)
         # Minimum stub to avoid import break; user can copy from the framework
-        stub = '''"""Soda scan + persist. Copie o conteúdo completo do framework se necessário."""
+        stub = '''"""Soda scan + persist. Copy the full content from the framework repo if needed."""
 def run_soda_scan_and_persist(data_source, config_path, contract_path, dag_id, task_id):
-    raise NotImplementedError("Copie dags/monitoring/soda_persistence.py do repositório do framework.")
+    raise NotImplementedError("Copy dags/monitoring/soda_persistence.py from the framework repository.")
 '''
         persistence_path.write_text(stub, encoding="utf-8")
 

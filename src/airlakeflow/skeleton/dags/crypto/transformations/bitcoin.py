@@ -1,6 +1,6 @@
 """
-Transformação Bronze -> Silver com pandas (sem Spark).
-Use este módulo como referência para suas outras pipelines.
+Bronze -> Silver transformation with pandas (no Spark).
+Use this module as a reference for your other pipelines.
 """
 import json
 import logging
@@ -14,10 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 def run_silver_bitcoin_transformation() -> None:
-    """Lê bronze.bitcoin_raw, transforma e grava em silver.bitcoin."""
+    """Read bronze.bitcoin_raw, transform and write to silver.bitcoin."""
     hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
-    # Pandas read_sql/to_sql com conexão DBAPI2 usa queries SQLite (ex.: sqlite_master);
-    # usar engine SQLAlchemy para o dialect PostgreSQL.
+    # Pandas read_sql/to_sql with DBAPI2 connection uses SQLite queries; use SQLAlchemy engine for PostgreSQL.
     uri = hook.get_uri()
     if uri.startswith("postgresql://"):
         uri = "postgresql+psycopg2://" + uri[len("postgresql://") :]
@@ -29,7 +28,7 @@ def run_silver_bitcoin_transformation() -> None:
         )
 
         if df.empty:
-            logger.warning("Bronze vazio; nada a transformar.")
+            logger.warning("Bronze empty; nothing to transform.")
             return
 
         rows = []
@@ -48,7 +47,7 @@ def run_silver_bitcoin_transformation() -> None:
                     "updated_at": updated_at,
                 })
             except (TypeError, KeyError, json.JSONDecodeError) as e:
-                logger.warning("Linha ignorada (payload inválido): %s", e)
+                logger.warning("Row skipped (invalid payload): %s", e)
 
         if not rows:
             logger.warning("No valid records for Silver.")
@@ -66,6 +65,6 @@ def run_silver_bitcoin_transformation() -> None:
             index=False,
             method="multi",
         )
-        logger.info("Silver Bitcoin: %s registro(s) escritos.", len(silver_df))
+        logger.info("Silver Bitcoin: %s record(s) written.", len(silver_df))
     finally:
         engine.dispose()

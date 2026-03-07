@@ -1,7 +1,7 @@
 """
-Pipeline demo: Bronze -> Silver -> Gold com dados MOCK.
-Rode este DAG após alf run para ver a pipeline completa sem depender de API externa.
-Depois replique as regras em suas próprias pipelines.
+Pipeline demo: Bronze -> Silver -> Gold with MOCK data.
+Run this DAG after alf run to see the full pipeline without an external API.
+Then replicate the logic in your own pipelines.
 """
 from datetime import datetime, timedelta
 

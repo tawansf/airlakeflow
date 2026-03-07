@@ -1,6 +1,6 @@
 """
-Bronze: ingestão de dados. Este exemplo usa dados MOCK (sem API externa)
-para você rodar a pipeline completa logo após alf init.
+Bronze: data ingestion. This example uses MOCK data (no external API)
+so you can run the full pipeline right after alf init.
 """
 import json
 import logging
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def _mock_bitcoin_payload() -> dict:
-    """Gera um payload simulado (como se viesse da API CoinGecko)."""
+    """Generate a mock payload (as if from CoinGecko API)."""
     now = int(datetime.now().timestamp())
     return {
         "bitcoin": {"usd": 43250.50, "last_updated_at": now},
@@ -21,9 +21,9 @@ def _mock_bitcoin_payload() -> dict:
 
 
 def bronze_ingestion_data_bitcoin():
-    """Insere um registro mock em bronze.bitcoin_raw. Roda sem rede."""
+    """Insert a mock record into bronze.bitcoin_raw. Runs without network."""
     payload = _mock_bitcoin_payload()
     payload_str = json.dumps(payload)
     hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
     hook.run("INSERT INTO bronze.bitcoin_raw (payload) VALUES (%s);", parameters=[payload_str])
-    logger.info("Bronze ingestão concluída: 1 registro mock em bronze.bitcoin_raw.")
+    logger.info("Bronze ingestion done: 1 mock record in bronze.bitcoin_raw.")

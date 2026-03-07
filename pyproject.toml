@@ -101,4 +101,10 @@ known-first-party = ["airlakeflow"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "demos", "src/airlakeflow/skeleton"]
-skips = ["B101"]  # assert_used: allow in tests (excluded by dir)
+skips = [
+    "B101",   # assert_used: allow in tests (excluded by dir)
+    "B110",   # try_except_pass: intentional fallbacks (config YAML, init migrations, status parse)
+    "B404",   # subprocess import: required for docker/compose and venv
+    "B603",   # subprocess without shell: we use list args, no shell injection
+    "B607",   # partial path: docker/compose are from PATH by design
+]

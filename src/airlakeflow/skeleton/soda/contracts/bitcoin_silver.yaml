@@ -1,4 +1,4 @@
-# Data contract - Silver Bitcoin (demo com dados mock)
+# Data contract - Silver Bitcoin (demo with mock data)
 dataset: postgres_datawarehouse/datawarehouse/silver/bitcoin
 
 checks:

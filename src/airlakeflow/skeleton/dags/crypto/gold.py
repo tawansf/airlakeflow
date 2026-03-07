@@ -1,5 +1,5 @@
 """
-Gold: agregação diária a partir do Silver.
+Gold: daily aggregation from Silver.
 """
 import logging
 from airflow.providers.postgres.hooks.postgres import PostgresHook
