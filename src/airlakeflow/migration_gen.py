@@ -13,6 +13,7 @@ def _next_migration_number(migrations_dir: Path) -> int:
     if not migrations_dir.exists():
         return 1
     import re
+
     existing = list(migrations_dir.glob("V*.sql"))
     numbers = []
     for f in existing:
@@ -50,7 +51,9 @@ def _dependency_order(models: list[type[Model]], layer_order: dict[str, int]) ->
                 visit(dep)
         order.append(m)
 
-    for m in sorted(models, key=lambda x: (layer_order.get(x.get_schema(), 99), x.get_table_name())):
+    for m in sorted(
+        models, key=lambda x: (layer_order.get(x.get_schema(), 99), x.get_table_name())
+    ):
         visit(m)
 
     return order

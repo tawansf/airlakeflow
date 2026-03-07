@@ -51,13 +51,17 @@ def _load_module(filepath: Path, project_root: Path, out: list[type[Model]]) -> 
         if attr.startswith("_"):
             continue
         obj = getattr(mod, attr)
-        if isinstance(obj, type) and issubclass(obj, Model) and obj is not Model and getattr(obj, "_alf_layer", None):
+        if (
+            isinstance(obj, type)
+            and issubclass(obj, Model)
+            and obj is not Model
+            and getattr(obj, "_alf_layer", None)
+        ):
             out.append(obj)
 
 
 def _load_package(models_dir: Path, project_root: Path, out: list[type[Model]]) -> None:
     """Load config.models package (import config.models)."""
-    config_dir = project_root / "config"
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
     try:
@@ -68,5 +72,10 @@ def _load_package(models_dir: Path, project_root: Path, out: list[type[Model]]) 
         if attr.startswith("_"):
             continue
         obj = getattr(mod, attr)
-        if isinstance(obj, type) and issubclass(obj, Model) and obj is not Model and getattr(obj, "_alf_layer", None):
+        if (
+            isinstance(obj, type)
+            and issubclass(obj, Model)
+            and obj is not Model
+            and getattr(obj, "_alf_layer", None)
+        ):
             out.append(obj)

@@ -79,9 +79,7 @@ def _get_webserver_port_from_env(project_root: Path) -> int:
     return 8080
 
 
-def _set_ports_in_env(
-    project_root: Path, postgres_port: int, webserver_port: int
-) -> bool:
+def _set_ports_in_env(project_root: Path, postgres_port: int, webserver_port: int) -> bool:
     """Set POSTGRES_HOST_PORT and AIRFLOW_WEBSERVER_PORT in .env. Create from .env.example if needed. Returns True if updated."""
     import re
 
@@ -222,9 +220,10 @@ def _ensure_logs(project_root: Path) -> None:
             d = logs_dir / sub
             d.mkdir(parents=True, exist_ok=True)
         try:
-            os.chmod(logs_dir, 0o777)
+            # 0o777 so Docker container (airflow user) can write; required for Airflow logs
+            os.chmod(logs_dir, 0o777)  # nosec B103
             for sub in _AIRFLOW_LOG_SUBDIRS:
-                os.chmod(logs_dir / sub, 0o777)
+                os.chmod(logs_dir / sub, 0o777)  # nosec B103
         except OSError:
             pass  # e.g. Windows or no permission; dirs exist, container may still work
     except PermissionError:

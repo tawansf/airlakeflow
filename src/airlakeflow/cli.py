@@ -1,5 +1,5 @@
-import sys
 from pathlib import Path
+import sys
 
 import click
 
@@ -7,7 +7,6 @@ from airlakeflow import __version__ as _pkg_version
 from airlakeflow.add_soda import run_add_soda
 from airlakeflow.config import (
     get_architecture_from_config,
-    get_migration_driver,
     load_config,
     resolve_project_root,
 )
@@ -33,7 +32,7 @@ from airlakeflow.migrations_cmd import (
 from airlakeflow.new_etl import run_new_etl
 from airlakeflow.new_migration import discover_dags, run_new_migration
 from airlakeflow.new_model_cmd import run_new_model
-from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_info, secho_ok, secho_warn
+from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_warn
 from airlakeflow.upgrade_cmd import run_upgrade
 from airlakeflow.validate_cmd import run_validate
 
@@ -42,7 +41,7 @@ DOCKER_COMMANDS = frozenset({"down", "exec", "logs", "ps", "restart", "run", "st
 
 
 class AlfGroup(click.Group):
-    """Group that lists Docker-related commands in a separate section in --help."""
+    """Group that lists Docker-related commands in a separate section in help."""
 
     def format_commands(self, ctx, formatter):
         commands = sorted(self.list_commands(ctx))
@@ -89,13 +88,13 @@ class AlfGroup(click.Group):
 def _get_version() -> str:
     try:
         from importlib.metadata import version
+
         return version("airlakeflow")
     except Exception:
         return _pkg_version
 
 
-@click.group(cls=AlfGroup, invoke_without_command=True)
-@click.version_option(version=_get_version(), prog_name="AirLakeFlow")
+@click.group(cls=AlfGroup, invoke_without_command=True, add_help_option=False)
 @click.pass_context
 def main(ctx: click.Context):
     """AirLakeFlow — CLI for the framework (Bronze / Silver / Gold)."""
@@ -103,6 +102,35 @@ def main(ctx: click.Context):
         print_banner(_get_version())
         click.echo(ctx.get_help())
         ctx.exit(0)
+
+
+@main.command("help", help="Show this message and exit.")
+@click.pass_context
+def _show_help(ctx: click.Context):
+    """Show main group help (alf help / alf h)."""
+    click.echo(ctx.parent.get_help())
+    ctx.exit(0)
+
+
+@main.command("h", hidden=True)
+@click.pass_context
+def _show_help_h(ctx: click.Context):
+    click.echo(ctx.parent.get_help())
+    ctx.exit(0)
+
+
+@main.command("version", help="Show version and exit.")
+@click.pass_context
+def _show_version(ctx: click.Context):
+    click.echo(f"AirLakeFlow {_get_version()}")
+    ctx.exit(0)
+
+
+@main.command("v", hidden=True)
+@click.pass_context
+def _show_version_v(ctx: click.Context):
+    click.echo(f"AirLakeFlow {_get_version()}")
+    ctx.exit(0)
 
 
 @main.group()
@@ -139,7 +167,8 @@ def _architecture_default_layer(project_root: str = ".") -> str:
 
 def _project_root_option(**kwargs):
     return click.option(
-        "--project-root",
+        "-r",
+        "project_root",
         type=click.Path(exists=True, file_okay=False, dir_okay=True),
         default=".",
         help="Project root (default: current directory)",
@@ -154,7 +183,7 @@ def list_etls(project_root: str):
     root = Path(resolve_project_root(project_root))
     etls = discover_dags(root)
     if not etls:
-        secho_fail("Nenhum ETL encontrado em dags/. Crie um com 'alf new etl NOME'.")
+        secho_fail("No ETLs found in dags/. Create one with 'alf new etl NAME'.")
         raise SystemExit(1)
     for name in etls:
         click.echo(f"  {SYM_LIST} {name}")
@@ -162,35 +191,40 @@ def list_etls(project_root: str):
 
 @new.command("etl")
 @click.argument("name", type=str)
-@click.option("--table-name", default=None, help="Table name (default: equal to NAME)")
+@click.option("-t", "table_name", default=None, help="Table name (default: equal to NAME)")
 @click.option(
-    "--contracts/--no-contracts",
+    "-c",
     "with_contracts",
+    is_flag=True,
     default=False,
     help="Generate Soda contracts (Bronze + Silver)",
 )
-@click.option("--gold/--no-gold", "with_gold", default=True, help="Include Gold layer")
+@click.option("-g", "with_gold", is_flag=True, default=True, help="Include Gold layer")
+@click.option("-G", "no_gold", is_flag=True, default=False, help="Exclude Gold layer")
 @click.option(
-    "--source",
+    "-s",
+    "source",
     type=click.Choice(["api", "file", "jdbc"]),
     default="api",
     help="Bronze ingestion type",
 )
 @click.option(
-    "--no-spark",
+    "-p",
+    "no_spark",
     is_flag=True,
     default=None,
     help="Silver with pandas only (no Spark). Default from .airlakeflow.yaml (silver_backend)",
 )
 @click.option(
-    "--spark",
+    "-k",
     "use_spark_flag",
     is_flag=True,
     default=None,
     help="Silver with PySpark. Default from .airlakeflow.yaml",
 )
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
     help="Project root (default: current directory)",
@@ -200,12 +234,15 @@ def new_etl(
     table_name: str | None,
     with_contracts: bool,
     with_gold: bool,
+    no_gold: bool,
     source: str,
     no_spark: bool | None,
     use_spark_flag: bool | None,
     project_root: str,
 ):
     """Create a new ETL pipeline (Bronze -> Silver -> Gold) in the current project."""
+    if no_gold:
+        with_gold = False
     project_root = str(resolve_project_root(project_root))
     if use_spark_flag:
         use_spark = True
@@ -228,23 +265,23 @@ def new_etl(
 
 @new.command("migration")
 @click.argument("name", type=str)
+@click.option("-d", "dag", default=None, help="DAG name (directory in dags/). If omitted, list to choose.")
 @click.option(
-    "--dag", default=None, help="DAG name (directory in dags/). If omitted, list to choose."
-)
-@click.option(
-    "--layer",
+    "-l",
+    "layer",
     type=click.Choice(_architecture_layers()),
     default=None,
     help="Layer (from project architecture). If omitted, ask.",
 )
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
     help="Project root (default: current directory)",
 )
 def new_migration(name: str, dag: str | None, layer: str | None, project_root: str):
-    """Create a migration for an existing DAG. Choose the DAG and the layer (or use --dag and --layer)."""
+    """Create a migration for an existing DAG. Choose the DAG and the layer (or use -d and -l)."""
     project_root = str(resolve_project_root(project_root))
     root = Path(project_root).resolve()
     dags = discover_dags(root)
@@ -264,16 +301,18 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
 @click.argument("schema", type=str)
 @click.argument("table", type=str)
 @click.option(
-    "--layer",
+    "-l",
+    "layer",
     type=click.Choice(_architecture_layers()),
     default=None,
     help="Layer for the contract",
 )
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
-    help="Raiz do projeto",
+    help="Project root",
 )
 def new_contract(schema: str, table: str, layer: str | None, project_root: str):
     """Create a new Soda contract for an existing table in the given layer."""
@@ -288,10 +327,11 @@ def new_contract(schema: str, table: str, layer: str | None, project_root: str):
 @new.command("layer")
 @click.argument("name", type=str)
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
-    help="Raiz do projeto",
+    help="Project root",
 )
 def new_layer(name: str, project_root: str):
     """Create a new layer (minimal DAG folder with pipeline and optional bronze/silver/gold stubs)."""
@@ -304,7 +344,8 @@ def new_layer(name: str, project_root: str):
 @new.command("model")
 @click.argument("name", type=str)
 @click.option(
-    "--layer",
+    "-l",
+    "layer",
     type=click.Choice(_architecture_layers(), case_sensitive=False),
     default=_architecture_default_layer(),
     help="Layer (from project architecture). Default from architecture.",
@@ -328,7 +369,8 @@ main.add_command(migrations_group, "m")
 
 @migrations_group.command("generate")
 @click.option(
-    "--driver",
+    "-D",
+    "driver",
     type=str,
     default=None,
     help="SQL dialect (postgres, etc.). Default: from config migration_driver",
@@ -342,7 +384,8 @@ def migrations_generate(project_root: str, driver: str | None):
 
 @migrations_group.command("up")
 @click.option(
-    "--uri",
+    "-u",
+    "uri",
     type=str,
     default=None,
     help="Postgres URI. Default: AIRFLOW_CONN_POSTGRES_DATAWAREHOUSE or config",
@@ -355,20 +398,18 @@ def migrations_up(project_root: str, uri: str | None):
 
 
 @migrations_group.command("down")
-@click.option("--dry-run", is_flag=True, help="Only show what would be dropped")
-@click.option("--force", is_flag=True, help="Skip confirmation prompt")
-@click.option("--uri", type=str, default=None, help="Postgres URI")
+@click.option("-n", "dry_run", is_flag=True, help="Only show what would be dropped")
+@click.option("-F", "force", is_flag=True, help="Skip confirmation prompt")
+@click.option("-u", "uri", type=str, default=None, help="Postgres URI")
 @_project_root_option()
 def migrations_down(project_root: str, dry_run: bool, force: bool, uri: str | None):
     """Rollback last applied migration (with confirmation)."""
     root = Path(resolve_project_root(project_root))
-    raise SystemExit(
-        run_migrations_down(root, uri, dry_run=dry_run, force=force)
-    )
+    raise SystemExit(run_migrations_down(root, uri, dry_run=dry_run, force=force))
 
 
 @migrations_group.command("doctor")
-@click.option("--driver", type=str, default=None, help="SQL dialect for comparison")
+@click.option("-D", "driver", type=str, default=None, help="SQL dialect for comparison")
 @_project_root_option()
 def migrations_doctor(project_root: str, driver: str | None):
     """Compare models with migrations; report drift."""
@@ -377,8 +418,8 @@ def migrations_doctor(project_root: str, driver: str | None):
 
 
 @migrations_group.command("align")
-@click.option("--driver", type=str, default=None, help="SQL dialect. Default: from config")
-@click.option("--force", is_flag=True, help="Skip confirmation prompt")
+@click.option("-D", "driver", type=str, default=None, help="SQL dialect. Default: from config")
+@click.option("-F", "force", is_flag=True, help="Skip confirmation prompt")
 @_project_root_option()
 def migrations_align(project_root: str, driver: str | None, force: bool):
     """Align migrations to models (model is reference; overwrites migration files). Asks to confirm when there are differences."""
@@ -393,13 +434,14 @@ def add():
 
 
 @add.command("soda")
-@click.option("--etl", "etl_name", default=None, help="Apply only to this ETL (directory in dags/)")
-@click.option("--all", "all_etls", is_flag=True, help="Apply to all ETLs (Project complete)")
+@click.option("-e", "etl_name", default=None, help="Apply only to this ETL (directory in dags/)")
+@click.option("-a", "all_etls", is_flag=True, help="Apply to all ETLs (Project complete)")
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
-    help="Raiz do projeto",
+    help="Project root",
 )
 def add_soda(etl_name: str | None, all_etls: bool, project_root: str):
     """Integrate Soda into the project: config, contracts and scan tasks in the ETLs."""
@@ -413,10 +455,11 @@ def add_soda(etl_name: str | None, all_etls: bool, project_root: str):
 
 
 @add.command("greatxp")
-@click.option("--etl", default=None, help="Specific ETL (in development)")
-@click.option("--all", "all_etls", is_flag=True, help="All ETLs (in development)")
+@click.option("-e", "etl", default=None, help="Specific ETL (in development)")
+@click.option("-a", "all_etls", is_flag=True, help="All ETLs (in development)")
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
     help="Project root (default: current directory)",
@@ -428,15 +471,16 @@ def add_greatxp(etl: str | None, all_etls: bool, project_root: str):
 
 @main.command("validate")
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
     help="Project root (default: current directory)",
 )
 @click.option(
-    "--no-docker", is_flag=True, help="Skip Docker and stack checks (only validate structure)"
+    "-N", "no_docker", is_flag=True, help="Skip Docker and stack checks (only validate structure)"
 )
-@click.option("--no-stack", is_flag=True, help="Skip check that Docker Compose stack is up")
+@click.option("-S", "no_stack", is_flag=True, help="Skip check that Docker Compose stack is up")
 @click.option("-q", "quiet", is_flag=True, help="Only exit with code 0/1, minimal output")
 def validate(project_root: str, no_docker: bool, no_stack: bool, quiet: bool):
     """Check project structure (dags/, soda/, docker-compose) and Docker (daemon, compose, stack up)."""
@@ -454,7 +498,8 @@ def validate(project_root: str, no_docker: bool, no_stack: bool, quiet: bool):
 
 @main.command("doctor")
 @click.option(
-    "--project-root",
+    "-r",
+    "project_root",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     default=".",
     help="Project root (default: current directory)",
@@ -490,8 +535,8 @@ def exec_cmd(project_root: str, service: str, command: tuple[str, ...]):
 
 @main.command("upgrade")
 @_project_root_option()
-@click.option("--dry-run", is_flag=True, help="Only show what would be updated")
-@click.option("--no-backup", is_flag=True, help="Do not backup files before overwriting")
+@click.option("-n", "dry_run", is_flag=True, help="Only show what would be updated")
+@click.option("-B", "no_backup", is_flag=True, help="Do not backup files before overwriting")
 def upgrade(project_root: str, dry_run: bool, no_backup: bool):
     """Update project files from the framework skeleton (optional backup in .airlakeflow_backup/)."""
     project_root = str(resolve_project_root(project_root))
@@ -500,8 +545,8 @@ def upgrade(project_root: str, dry_run: bool, no_backup: bool):
 
 @main.command("run")
 @_project_root_option()
-@click.option("--build", is_flag=True, help="Build images before starting")
-@click.option("--foreground", "-f", is_flag=True, help="Run in foreground (no -d)")
+@click.option("-b", "build", is_flag=True, help="Build images before starting")
+@click.option("-f", "foreground", is_flag=True, help="Run in foreground (no -d)")
 def run(project_root: str, build: bool, foreground: bool):
     """Start the application (docker compose up -d)."""
     project_root = str(resolve_project_root(project_root))
@@ -529,7 +574,7 @@ def restart(project_root: str):
 
 @main.command("down")
 @_project_root_option()
-@click.option("--volumes", "-v", is_flag=True, help="Remove named Docker volumes")
+@click.option("-v", "volumes", is_flag=True, help="Remove named Docker volumes")
 def down(project_root: str, volumes: bool):
     """Tear down the stack (Docker Compose down)."""
     project_root = str(resolve_project_root(project_root))
@@ -539,7 +584,7 @@ def down(project_root: str, volumes: bool):
 
 @main.command("logs")
 @_project_root_option()
-@click.option("--follow", "-f", is_flag=True, help="Follow Docker logs output")
+@click.option("-f", "follow", is_flag=True, help="Follow Docker logs output")
 @click.argument("service", required=False, default=None)
 def logs(project_root: str, follow: bool, service: str | None):
     """Show container logs (Docker Compose logs)."""
@@ -560,40 +605,69 @@ def ps(project_root: str):
 @main.command("init")
 @click.argument("project_name", type=str, default=".", required=False)
 @click.option(
-    "--demo/--no-demo",
+    "-d",
     "demo",
+    is_flag=True,
     default=None,
+    flag_value=True,
     help="Include DAG demo (crypto). If omitted, init will ask interactively.",
 )
 @click.option(
-    "--with-monitoring/--no-monitoring",
-    "with_monitoring",
+    "-D",
+    "no_demo",
+    is_flag=True,
     default=None,
+    help="Exclude DAG demo. If omitted, init will ask interactively.",
+)
+@click.option(
+    "-m",
+    "with_monitoring",
+    is_flag=True,
+    default=None,
+    flag_value=True,
     help="Include Soda (data quality). If omitted, init will ask interactively.",
 )
 @click.option(
-    "--backend",
+    "-M",
+    "no_monitoring",
+    is_flag=True,
+    default=None,
+    help="Exclude monitoring. If omitted, init will ask interactively.",
+)
+@click.option(
+    "-b",
+    "backend",
     type=click.Choice(["pandas", "pyspark"], case_sensitive=False),
     default=None,
     help="Silver layer: pandas or pyspark. If omitted, init will ask interactively.",
 )
 @click.option(
-    "--minimal/--full",
+    "-s",
     "use_minimal_stack",
+    type=click.Choice(["minimal", "full"], case_sensitive=False),
     default=None,
-    help="Versão: mínima (4 containers) ou completa (7 containers). Se omitido, pergunta no init.",
+    help="Stack: minimal (4 containers) or full (7). If omitted, init will ask.",
 )
 def init(
     project_name: str,
     demo: bool | None,
+    no_demo: bool | None,
     with_monitoring: bool | None,
+    no_monitoring: bool | None,
     backend: str | None,
-    use_minimal_stack: bool | None,
+    use_minimal_stack: str | None,
 ):
     """Create a new project. Run without flags to choose options interactively."""
+    if no_demo:
+        demo = False
+    if no_monitoring:
+        with_monitoring = False
+    if use_minimal_stack is not None:
+        use_minimal_stack = use_minimal_stack == "minimal"
     interactive = sys.stdin.isatty()
     try:
         import questionary
+
         _has_select = True
     except ImportError:
         _has_select = False
@@ -603,8 +677,8 @@ def init(
             choice = questionary.select(
                 "Incluir DAGs de demonstração (crypto)?",
                 choices=[
-                    questionary.Choice("Sim", value=True),
-                    questionary.Choice("Não", value=False),
+                    questionary.Choice("Yes", value=True),
+                    questionary.Choice("No", value=False),
                 ],
                 default=True,
                 pointer="→",
@@ -621,8 +695,8 @@ def init(
             choice = questionary.select(
                 "Adicionar Soda (qualidade de dados)?",
                 choices=[
-                    questionary.Choice("Sim", value=True),
-                    questionary.Choice("Não", value=False),
+                    questionary.Choice("Yes", value=True),
+                    questionary.Choice("No", value=False),
                 ],
                 default=False,
                 pointer="→",
@@ -639,8 +713,8 @@ def init(
             choice = questionary.select(
                 "Backend da camada Silver",
                 choices=[
-                    questionary.Choice("pandas (leve, single machine)", value="pandas"),
-                    questionary.Choice("pyspark (distribuído)", value="pyspark"),
+                    questionary.Choice("pandas (lightweight, single machine)", value="pandas"),
+                    questionary.Choice("pyspark (distributed)", value="pyspark"),
                 ],
                 default="pandas",
                 pointer="→",
@@ -660,8 +734,8 @@ def init(
             choice = questionary.select(
                 "Versão do projeto",
                 choices=[
-                    questionary.Choice("mínima (4 containers, LocalExecutor)", value="minima"),
-                    questionary.Choice("completa (7 containers, Celery)", value="completa"),
+                    questionary.Choice("minimal (4 containers, LocalExecutor)", value="minima"),
+                    questionary.Choice("full (7 containers, Celery)", value="completa"),
                 ],
                 default="minima",
                 pointer="→",

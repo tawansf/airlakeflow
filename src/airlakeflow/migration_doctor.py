@@ -7,7 +7,6 @@ from pathlib import Path
 
 from airlakeflow.dialects import get_dialect
 from airlakeflow.model_loader import discover_models
-from airlakeflow.models.base import Model
 
 
 def _normalize_sql(text: str) -> str:
@@ -53,7 +52,7 @@ def doctor_models_vs_migrations(project_root: Path, driver: str) -> list[str]:
     issues: list[str] = []
     validation_errors = validate_migrations_dir(migrations_dir)
     for err in validation_errors:
-        issues.append(f"[regra] {err}")
+        issues.append(f"[rule] {err}")
 
     dialect = get_dialect(driver)
     models = discover_models(root)
@@ -70,9 +69,7 @@ def doctor_models_vs_migrations(project_root: Path, driver: str) -> list[str]:
         expected = dialect.emit_create_table(model)
         actual = path.read_text(encoding="utf-8")
         if _normalize_sql(expected) != _normalize_sql(actual):
-            issues.append(
-                f"Model {model.__name__} ({schema}.{table}) diverges from {path.name}"
-            )
+            issues.append(f"Model {model.__name__} ({schema}.{table}) diverges from {path.name}")
 
     # 2) Migration → Model: each setup_<schema>_<table> migration should have a model and match
     for path in sorted(migrations_dir.glob("V*.sql")):

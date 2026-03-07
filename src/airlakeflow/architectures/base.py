@@ -6,7 +6,7 @@ from abc import ABC
 from typing import ClassVar
 
 
-class BaseArchitecture(ABC):
+class BaseArchitecture(ABC):  # noqa: B024
     """Define layers (schemas) and ordering for an architecture (Medallion, Data Vault, Kimball, ...)."""
 
     name: ClassVar[str] = "base"

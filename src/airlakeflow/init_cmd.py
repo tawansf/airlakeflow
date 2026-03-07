@@ -1,10 +1,11 @@
+from pathlib import Path
 import shutil
 import subprocess
 import sys
-from pathlib import Path
 
 from airlakeflow.docker_cmd import create_env_from_example
-from airlakeflow.style import SYM_OK, secho_heading, secho_info, secho_ok
+from airlakeflow.style import SYM_OK, secho_info, secho_ok
+
 
 def _default_model_content(layer: str) -> str:
     return f'''"""Model de exemplo ({layer}). Edite ou crie novos com 'alf new model NAME'."""
@@ -68,7 +69,11 @@ def run_init(
     # Choose compose and image: minimal stack = LocalExecutor, lighter image when pandas + no Soda
     if use_minimal_stack:
         _minimal_yaml = framework_root / "docker-compose.minimal.yaml"
-        compose_src = _minimal_yaml if _minimal_yaml.exists() else _skeleton_dir / "docker-compose.minimal.yaml"
+        compose_src = (
+            _minimal_yaml
+            if _minimal_yaml.exists()
+            else _skeleton_dir / "docker-compose.minimal.yaml"
+        )
         use_light_image = backend == "pandas" and not with_monitoring
     else:
         compose_src = framework_root / "docker-compose.yaml"
@@ -146,7 +151,7 @@ architecture: medallion
 
     # Create .env with AIRFLOW_UID = current user (Unix) or 50000 (Windows) so alf run works without permission errors
     if create_env_from_example(dest_path):
-        secho_info("  ▸ .env criado com AIRFLOW_UID para esta máquina")
+        secho_info("  ▸ .env created with AIRFLOW_UID for this machine")
 
     if not with_demo:
         for name in ("crypto",):
@@ -170,14 +175,16 @@ architecture: medallion
     # Create default model if config/models/ has no model files (so migrations have a reference)
     models_dir = dest_path / "config" / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
-    existing_models = [p for p in models_dir.glob("*.py") if p.name != "__init__.py" and not p.name.startswith("_")]
+    existing_models = [
+        p for p in models_dir.glob("*.py") if p.name != "__init__.py" and not p.name.startswith("_")
+    ]
     if not existing_models:
         from airlakeflow.config import get_architecture_from_config, load_config
 
         cfg = load_config(dest_path)
         arch = get_architecture_from_config(cfg)
         _write_default_model(models_dir, arch.default_layer)
-        secho_info("  ▸ Model default criado: config/models/example.py")
+        secho_info("  ▸ Default model created: config/models/example.py")
 
     # Generate default migrations from config/models/ so model and migrations stay in sync
     try:
@@ -188,7 +195,7 @@ architecture: medallion
         driver = get_migration_driver(cfg)
         created = generate_migrations(dest_path, driver=driver)
         if created:
-            secho_info(f"  ▸ {len(created)} migration(s) gerada(s) a partir dos models")
+            secho_info(f"  ▸ {len(created)} migration(s) generated from models")
     except Exception:
         pass  # do not fail init if migration generation fails (e.g. no dialect)
 
@@ -201,19 +208,21 @@ architecture: medallion
                 check=True,
                 capture_output=True,
             )
-            secho_info("  ▸ venv criado: .venv (ative com source .venv/bin/activate ou .venv\\Scripts\\activate)")
+            secho_info(
+                "  ▸ venv created: .venv (activate with source .venv/bin/activate or .venv\\Scripts\\activate)"
+            )
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass  # do not fail init if venv creation fails
 
-    secho_ok(f"{SYM_OK} Projeto criado: {dest_path}")
+    secho_ok(f"{SYM_OK} Project created: {dest_path}")
     if framework_root.name == "skeleton":
-        secho_info("  (estrutura do pacote AirLakeFlow)")
+        secho_info("  (AirLakeFlow package structure)")
     if use_minimal_stack:
-        secho_info("  ▸ Stack: mínima (LocalExecutor, 4 containers)")
+        secho_info("  ▸ Stack: minimal (LocalExecutor, 4 containers)")
     if use_light_image:
-        secho_info("  ▸ Imagem: mínima (sem Java, requirements.minimal)")
+        secho_info("  ▸ Image: minimal (no Java, requirements.minimal)")
     if with_demo and (dest_path / "dags" / "crypto").exists():
-        secho_info("  ▸ DAG demo (crypto) incluída")
+        secho_info("  ▸ Demo DAG (crypto) included")
     if with_monitoring and (dest_path / "dags" / "monitoring").exists():
-        secho_info("  ▸ Monitoring e Soda incluídos")
-    secho_info(f"  ▸ Backend Silver: {backend} (edite .airlakeflow.yaml para alterar)")
+        secho_info("  ▸ Monitoring and Soda included")
+    secho_info(f"  ▸ Silver backend: {backend} (edit .airlakeflow.yaml to change)")

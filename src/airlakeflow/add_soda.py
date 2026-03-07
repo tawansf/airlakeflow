@@ -11,8 +11,14 @@ from pathlib import Path
 import click
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from airlakeflow.config import get_contracts_dir, get_soda_config_path, get_soda_data_source, load_config
+from airlakeflow.config import (
+    get_contracts_dir,
+    get_soda_config_path,
+    get_soda_data_source,
+    load_config,
+)
 from airlakeflow.new_migration import discover_dags
+
 
 # Minimum stub for configuration.yaml (don't overwrite if it already exists)
 def _soda_config_yaml(data_source_name: str) -> str:

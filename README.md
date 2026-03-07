@@ -35,10 +35,20 @@ python3 -m venv .venv
 source .venv/bin/activate   # Linux/macOS
 # or:  .venv\Scripts\activate   # Windows
 pip install -e .
-alf --version
+alf version
 ```
 
-The `.venv` lives at the repo root; demos in `demos/` use their own environments (e.g. `demos/full-example/venv`). For development: `pip install -e ".[dev]"` (adds pytest, ruff, black). Run tests: `pytest tests/`. Lint: `ruff check src tests`. Format: `black src tests`.
+The `.venv` lives at the repo root; demos in `demos/` use their own environments (e.g. `demos/full-example/venv`). For development: `pip install -e ".[dev]"` (adds pytest, ruff, black, bandit, pip-audit). Then:
+
+```bash
+pytest tests/ -q          # run tests
+ruff check src tests      # lint
+black src tests           # format
+pip-audit                 # check dependencies for vulnerabilities (skips editable pkg)
+bandit -r src -q -l       # security lint (fail on High only)
+```
+
+(If `pytest` is not in your PATH, use `python3 -m pytest tests/ -q`.)
 
 ---
 
@@ -51,7 +61,7 @@ cd my-project
 
 # 2. Create an ETL pipeline
 alf new etl sales
-alf new migration setup_bronze_sales --dag sales --layer bronze
+alf new migration setup_bronze_sales -d sales -l bronze
 # (edit dags/sql/migrations/ and logic in dags/sales/)
 
 # 3. Optional: add quality with Soda
@@ -71,7 +81,7 @@ alf run
 | Command                               | Description                                                                                                                       |
 | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `alf init [name]`                     | Create a new project (folder with dags/, soda/, docker-compose, etc.). Omit name to use the current directory.                   |
-| `alf validate [--project-root PATH]`  | Check structure (dags/, soda/, docker-compose) and Docker (daemon, stack). Use `--no-docker` or `--no-stack` to narrow the check.  |
+| `alf validate [-r PATH]`  | Check structure (dags/, soda/, docker-compose) and Docker (daemon, stack). Use `-N` or `-S` to skip Docker/stack checks.  |
 
 
 ### ETL and migrations
@@ -101,7 +111,7 @@ alf run
 | `alf ps`                   | List running containers.                                                                                                                   |
 
 
-For any command that operates on a project you can pass `**--project-root PATH**` (default: current directory).
+For any command that operates on a project you can pass `**-r PATH**` (project root; default: current directory). Use `alf help` or `alf h` for usage.
 
 ---
 

@@ -21,6 +21,9 @@ SYM_STOP = "⛔"
 SYM_FOLDER = "📁"
 SYM_DOC = "📄"
 SYM_FLOW = "🌊"
+SYM_BRONZE_MEDAL = "🥉"
+SYM_SILVER_MEDAL = "🥈"
+SYM_GOLD_MEDAL = "🥇"
 
 
 def _color_enabled() -> bool:
@@ -104,12 +107,12 @@ def secho_heading(text: str) -> None:
 
 # ASCII art "AirLakeFlow" (block style font)
 _AIRLAKEFLOW_ASCII = r"""
-           _      _           _        ______ _               
-     /\   (_)    | |         | |      |  ____| |              
+           _      _           _        ______ _
+     /\   (_)    | |         | |      |  ____| |
     /  \   _ _ __| |     __ _| | _____| |__  | | _____      __
    / /\ \ | | '__| |    / _` | |/ / _ \  __| | |/ _ \ \ /\ / /
-  / ____ \| | |  | |___| (_| |   <  __/ |    | | (_) \ V  V / 
- /_/    \_\_|_|  |______\__,_|_|\_\___|_|    |_|\___/ \_/\_/  
+  / ____ \| | |  | |___| (_| |   <  __/ |    | | (_) \ V  V /
+ /_/    \_\_|_|  |______\__,_|_|\_\___|_|    |_|\___/ \_/\_/
 """.strip("\n")
 
 
@@ -122,12 +125,17 @@ def print_banner(version: str) -> None:
     for line in _AIRLAKEFLOW_ASCII.split("\n"):
         click.echo(_style(line.rstrip(), fg=logo_color))
     click.echo()
-    click.echo("  " + dim(f"v{version}") + "  " + dim("Bronze → Silver → Gold"))
+    click.echo(
+        "  "
+        + dim(f"v{version}")
+        + "  "
+        + dim(f"{SYM_BRONZE_MEDAL} Bronze → {SYM_SILVER_MEDAL} Silver → {SYM_GOLD_MEDAL} Gold")
+    )
     click.echo()
     click.echo(_style("  Quick start:", bold=True))
     click.echo("    " + SYM_PACKAGE + " alf init <nome>     " + dim("Create new project"))
-    click.echo("    " + SYM_FOLDER  + " alf new etl <nome>  " + dim("Add ETL pipeline"))
-    click.echo("    " + SYM_PLAY    + "  alf run             " + dim("Start the stack (Docker)"))
+    click.echo("    " + SYM_FOLDER + " alf new etl <nome>  " + dim("Add ETL pipeline"))
+    click.echo("    " + SYM_PLAY + "  alf run             " + dim("Start the stack (Docker)"))
     click.echo()
-    click.echo("  Use: " + dim("alf --help") + " to see all commands.")
+    click.echo("  Use: " + dim("alf help") + " to see all commands.")
     click.echo()

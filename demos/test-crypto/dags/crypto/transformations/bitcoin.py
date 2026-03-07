@@ -51,7 +51,7 @@ def run_silver_bitcoin_transformation() -> None:
                 logger.warning("Linha ignorada (payload inválido): %s", e)
 
         if not rows:
-            logger.warning("Nenhum registro válido para Silver.")
+            logger.warning("No valid records for Silver.")
             return
 
         silver_df = pd.DataFrame(rows)

@@ -52,6 +52,6 @@ def test_validate_cli_exit_zero(tmp_path):
     runner = CliRunner()
     r = runner.invoke(
         main,
-        ["validate", "--project-root", str(tmp_path), "--no-docker", "--no-stack", "-q"],
+        ["validate", "-r", str(tmp_path), "-N", "-S", "-q"],
     )
     assert r.exit_code == 0

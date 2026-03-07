@@ -124,18 +124,18 @@ pip install -e .
   * `--source api|file|jdbc`: bronze ingestion type. Default: `api`.
   * `--no-spark`: silver without Spark (Python-only placeholder).
   * `--table-name NAME`: table/base name (default: same as NAME).
-  * `--project-root PATH`: project root (default: current directory).
+  * `-r PATH`: project root (default: current directory).
 
   Example:
   ```bash
-  alf new etl vendas --contracts --project-root .
+  alf new etl vendas -c -r .
   ```
 
 * **`alf new migration NAME [options]`** — Create a migration for an existing DAG. You choose the DAG (or are prompted) and the layer (bronze, silver, gold). Creates a new `V0XX__<name>.sql` with a placeholder table (default columns); edit the file to match your schema.
   * `NAME`: short description for the migration (e.g. `setup_bronze_csgostats`).
   * `--dag NAME`: DAG folder name (e.g. `csgostats`, `vendas`). If omitted, the CLI lists DAGs to choose from.
   * `--layer bronze|silver|gold`: layer. If omitted, you are prompted.
-  * `--project-root PATH`: project root (default: current directory).
+  * `-r PATH`: project root (default: current directory).
 
   Example:
   ```bash

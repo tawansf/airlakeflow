@@ -24,6 +24,6 @@ Medallion-style data pipeline (Bronze / Silver / Gold) with Airflow and Soda.
 You can define tables as **models** in `config/models/` and generate migrations from them:
 
 - `alf new model <name> --layer silver` — creates a model class in `config/models/`.
-- `alf generate-migrations` — generates `dags/sql/migrations/*.sql` from models (uses `migration_driver` from `.airlakeflow.yaml`, default: postgres).
+- `alf migrations generate` — generates `dags/sql/migrations/*.sql` from models (uses `migration_driver` from `.airlakeflow.yaml`, default: postgres).
 
 This keeps schema as the single source of truth; new SQL dialects (Oracle, SQL Server, etc.) can be added later.

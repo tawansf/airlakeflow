@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  test-and-lint:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install project and dev dependencies
+        run: |
+          python -m pip install --upgrade "pip>=25.3"
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: pytest tests/ -q
+
+      - name: Lint with Ruff
+        run: ruff check src tests
+
+      - name: Check formatting with Black
+        run: black --check src tests
+
+  quality-and-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install project and dev dependencies
+        run: |
+          python -m pip install --upgrade "pip>=25.3"
+          pip install -e ".[dev]"
+
+      - name: Audit dependencies for vulnerabilities
+        run: pip-audit
+        # Without --strict so editable install (this repo) is skipped; pip>=25.3 avoids known pip CVEs
+
+      - name: Security lint (Bandit)
+        run: bandit -r src -q -l
+        # -l = fail only on High; Medium/Low are reported but do not fail the job

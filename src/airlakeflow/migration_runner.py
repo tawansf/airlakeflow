@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from urllib.parse import urlparse
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 if TYPE_CHECKING:
-    from psycopg2.extensions import connection as PgConnection
+    from psycopg2.extensions import connection as PgConnection  # noqa: F401
 
 CONTROL_SCHEMA = "alf"
 CONTROL_TABLE = "schema_migrations"
@@ -32,6 +32,7 @@ def _parse_uri(uri: str) -> dict:
 
 def _connect(uri: str):
     import psycopg2
+
     kwargs = _parse_uri(uri)
     if not kwargs:
         raise ValueError("Invalid or empty connection URI")
@@ -41,21 +42,20 @@ def _connect(uri: str):
 def _ensure_control_table(conn) -> None:
     with conn.cursor() as cur:
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {CONTROL_SCHEMA}")
-        cur.execute(
-            f"""
+        cur.execute(f"""
             CREATE TABLE IF NOT EXISTS {CONTROL_SCHEMA}.{CONTROL_TABLE} (
                 version VARCHAR(255) PRIMARY KEY,
                 applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-            """
-        )
+            """)
     conn.commit()
 
 
 def _applied_versions(conn) -> set[str]:
     with conn.cursor() as cur:
         try:
-            cur.execute(f"SELECT version FROM {CONTROL_SCHEMA}.{CONTROL_TABLE} ORDER BY version")
+            # CONTROL_* are constants; no user input in this query
+            cur.execute(f"SELECT version FROM {CONTROL_SCHEMA}.{CONTROL_TABLE} ORDER BY version")  # nosec
             return {row[0] for row in cur.fetchall()}
         except Exception:
             return set()
@@ -75,7 +75,7 @@ def apply_pending(migrations_dir: Path, uri: str) -> list[str]:
     validation_errors = validate_migrations_dir(migrations_dir)
     if validation_errors:
         raise ValueError(
-            "Migrations inválidas (apenas tabelas/views permitido). Use scripts/ para comandos de camada.\n  "
+            "Invalid migrations (only tables/views allowed). Use scripts/ for layer commands.\n  "
             + "\n  ".join(validation_errors)
         )
 
@@ -91,8 +91,9 @@ def apply_pending(migrations_dir: Path, uri: str) -> list[str]:
                     continue
                 sql = path.read_text(encoding="utf-8")
                 cur.execute(sql)
+                # CONTROL_* are constants; path.name is parameterized
                 cur.execute(
-                    f"INSERT INTO {CONTROL_SCHEMA}.{CONTROL_TABLE} (version) VALUES (%s)",
+                    f"INSERT INTO {CONTROL_SCHEMA}.{CONTROL_TABLE} (version) VALUES (%s)",  # nosec
                     (path.name,),
                 )
                 newly_applied.append(path.name)
@@ -102,9 +103,7 @@ def apply_pending(migrations_dir: Path, uri: str) -> list[str]:
         conn.close()
 
 
-def list_migrations_with_status(
-    migrations_dir: Path, uri: str | None
-) -> list[tuple[str, str]]:
+def list_migrations_with_status(migrations_dir: Path, uri: str | None) -> list[tuple[str, str]]:
     """Return list of (filename, 'applied'|'pending'). If uri is None, all are 'pending'."""
     files = _discover_files(migrations_dir)
     if not uri:
@@ -130,6 +129,7 @@ def _infer_drop_sql(filename: str, migrations_dir: Path) -> list[str]:
     desc = m.group(1).lower().replace("-", "_")
     if desc == "setup_schemas":
         from airlakeflow.config import get_architecture_from_config, load_config
+
         project_root = migrations_dir.parent.parent.parent
         cfg = load_config(project_root)
         arch = get_architecture_from_config(cfg)
@@ -168,7 +168,9 @@ def rollback_last(
     last_file = applied_list[-1]
     drop_sqls = _infer_drop_sql(last_file, migrations_dir)
     if not drop_sqls:
-        secho_warn(f"Cannot infer DROP for {last_file}; only setup_<schema>_<table> migrations are rolled back.")
+        secho_warn(
+            f"Cannot infer DROP for {last_file}; only setup_<schema>_<table> migrations are rolled back."
+        )
         return 0
 
     if dry_run:
@@ -180,20 +182,21 @@ def rollback_last(
     if not force:
         try:
             import questionary
+
             choice = questionary.select(
-                "Quer mesmo fazer o drop? Isso pode apagar tabelas/dados.",
+                "Are you sure you want to perform the drop? This may delete tables/data.",
                 choices=[
-                    questionary.Choice("Não (cancelar)", value="no"),
-                    questionary.Choice("Sim, fazer o drop", value="yes"),
+                    questionary.Choice("No (cancel)", value="no"),
+                    questionary.Choice("Yes, perform drop", value="yes"),
                 ],
                 default="no",
                 pointer="→",
             ).ask()
             if choice != "yes":
-                secho_info("Cancelado.")
+                secho_info("Cancelled.")
                 return 0
         except ImportError:
-            secho_fail("Instale 'questionary' para confirmação interativa ou use --force.")
+            secho_fail("Install 'questionary' for interactive confirmation or use -F.")
             return 1
 
     conn = _connect(uri)
@@ -201,8 +204,9 @@ def rollback_last(
         with conn.cursor() as cur:
             for sql in drop_sqls:
                 cur.execute(sql)
+            # CONTROL_* are constants; last_file is parameterized
             cur.execute(
-                f"DELETE FROM {CONTROL_SCHEMA}.{CONTROL_TABLE} WHERE version = %s",
+                f"DELETE FROM {CONTROL_SCHEMA}.{CONTROL_TABLE} WHERE version = %s",  # nosec
                 (last_file,),
             )
         conn.commit()

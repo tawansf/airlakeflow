@@ -74,7 +74,7 @@ class PostgresDialect(BaseDialect):
         lines.append(");")
 
         # Indexes on common columns
-        for name, field in model.get_fields():
+        for name, _field in model.get_fields():
             if name in ("updated_at", "created_at", "date", "data_ingestao", "ingestion_date"):
                 idx = f"idx_{schema}_{table}_{name}".replace(".", "_")
                 lines.append(f"\nCREATE INDEX IF NOT EXISTS {idx} ON {full}({name});")

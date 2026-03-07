@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     "click>=8.0",
     "jinja2>=3.0",
+    "pyyaml>=6.0",
     "questionary>=2.0.0",
 ]
 
@@ -39,6 +40,8 @@ dev = [
     "pytest>=7.4",
     "ruff>=0.8.0",
     "black>=24.0.0",
+    "bandit[toml]>=1.7.0",
+    "pip-audit>=2.0",
 ]
 
 [project.scripts]
@@ -95,3 +98,7 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["airlakeflow"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "demos", "src/airlakeflow/skeleton"]
+skips = ["B101"]  # assert_used: allow in tests (excluded by dir)

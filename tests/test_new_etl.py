@@ -27,9 +27,8 @@ def test_new_etl_creates_files(tmp_path):
             "new",
             "etl",
             "teste_etl",
-            "--no-contracts",
-            "--no-gold",
-            "--project-root",
+            "-G",
+            "-r",
             str(proj),
         ],
     )

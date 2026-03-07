@@ -127,7 +127,7 @@ def run_doctor(project_root: Path, driver: str | None) -> int:
 
 def run_align(project_root: Path, driver: str | None, force: bool = False) -> int:
     """Overwrite migration files with DDL from models (model as reference).
-    When there are differences, asks for confirmation unless --force. Returns 0 on success, 1 on error.
+    When there are differences, asks for confirmation unless -F. Returns 0 on success, 1 on error.
     """
     from airlakeflow.migration_doctor import align_migrations_to_models, doctor_models_vs_migrations
 
@@ -140,27 +140,28 @@ def run_align(project_root: Path, driver: str | None, force: bool = False) -> in
         secho_ok("Models and migrations are aligned. Nothing to do.")
         return 0
 
-    secho_warn("Há diferenças entre modelo(s) e migration(s):")
+    secho_warn("There are differences between model(s) and migration(s):")
     for msg in issues:
         secho_info(f"  • {msg}")
 
     if not force:
         try:
             import questionary
+
             choice = questionary.select(
-                "Deseja alinhar mesmo assim? As migrations serão sobrescritas com o DDL dos models (modelo é a referência).",
+                "Do you want to align anyway? Migrations will be overwritten with model DDL (model is the reference).",
                 choices=[
-                    questionary.Choice("Não (cancelar)", value="no"),
-                    questionary.Choice("Sim, alinhar migrations aos models", value="yes"),
+                    questionary.Choice("No (cancel)", value="no"),
+                    questionary.Choice("Yes, align migrations to models", value="yes"),
                 ],
                 default="no",
                 pointer="→",
             ).ask()
             if choice != "yes":
-                secho_info("Cancelado.")
+                secho_info("Cancelled.")
                 return 0
         except ImportError:
-            secho_fail("Instale 'questionary' para confirmação interativa ou use --force.")
+            secho_fail("Install 'questionary' for interactive confirmation or use -F.")
             return 1
 
     try:
@@ -169,9 +170,9 @@ def run_align(project_root: Path, driver: str | None, force: bool = False) -> in
         secho_fail(str(e))
         return 1
     if not updated:
-        secho_warn("Nenhuma migration foi atualizada (nenhum arquivo corresponde aos models).")
+        secho_warn("No migration was updated (no file matches the models).")
         return 0
-    secho_ok(f"Alinhadas {len(updated)} migration(s) aos models.")
+    secho_ok(f"Aligned {len(updated)} migration(s) to models.")
     for p in updated:
         rel = p.relative_to(root) if root in p.parents else p
         secho_info(f"  {rel}")

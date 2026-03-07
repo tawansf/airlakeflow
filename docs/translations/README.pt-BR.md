@@ -33,7 +33,7 @@ python3 -m venv .venv
 source .venv/bin/activate   # Linux/macOS
 # ou:  .venv\Scripts\activate   # Windows
 pip install -e .
-alf --version
+alf version
 ```
 
 O `.venv` fica na raiz; os exemplos em `demos/` têm seus próprios ambientes (ex.: `demos/full-example/venv`). Para desenvolvimento: `pip install -e ".[dev]"` (inclui pytest, ruff, black). Rodar testes: `pytest tests/`. Lint: `ruff check src tests`. Formatar: `black src tests`.
@@ -70,7 +70,7 @@ alf run
 | Comando                              | Descrição                                                                                                                      |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
 | `alf init [nome]`                    | Cria um novo projeto (pasta com dags/, soda/, docker-compose, etc.). Sem nome, usa o diretório atual.                          |
-| `alf validate [--project-root PATH]` | Verifica estrutura (dags/, soda/, docker-compose) e Docker (daemon, stack). Use `--no-docker` ou `--no-stack` para restringir. |
+| `alf validate [-r PATH]` | Verifica estrutura (dags/, soda/, docker-compose) e Docker (daemon, stack). Use `-N` ou `-S` para pular checagens. |
 
 
 ### ETL e migrations
@@ -103,7 +103,7 @@ alf run
 | `alf ps`                  | Lista containers em execução.                                                                                                                        |
 
 
-Em todos os comandos que atuam sobre um projeto pode-se usar `**--project-root PATH**` (padrão: diretório atual).
+Em todos os comandos que atuam sobre um projeto pode-se usar `**-r PATH**` (raiz do projeto; padrão: diretório atual). Use `alf help` ou `alf h` para uso.
 
 ---
 

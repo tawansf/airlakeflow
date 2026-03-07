@@ -15,12 +15,12 @@ class BaseDialect(ABC):
     name: str = "base"
 
     @abstractmethod
-    def emit_type(self, field: "FieldDesc") -> str:
+    def emit_type(self, field: FieldDesc) -> str:
         """Return the SQL type for this field (e.g. SERIAL, VARCHAR(255), NUMERIC(18,8))."""
         ...
 
     @abstractmethod
-    def emit_create_table(self, model: type["Model"]) -> str:
+    def emit_create_table(self, model: type[Model]) -> str:
         """Return full CREATE TABLE statement (and optionally CREATE INDEX) for the model."""
         ...
 
@@ -28,7 +28,7 @@ class BaseDialect(ABC):
         """Return CREATE SCHEMA IF NOT EXISTS schema. Override if the engine uses different syntax."""
         return f"CREATE SCHEMA IF NOT EXISTS {schema};"
 
-    def emit_references(self, field: "FieldDesc") -> str | None:
+    def emit_references(self, field: FieldDesc) -> str | None:
         """Return REFERENCES clause if field has ref; otherwise None. Override for dialect-specific FK syntax."""
         if not field.ref:
             return None

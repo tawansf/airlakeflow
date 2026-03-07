@@ -64,11 +64,11 @@ def run_new_model(
         driver = get_migration_driver(cfg)
         created = generate_migrations(root, driver=driver)
         if created:
-            secho_ok(f"  Migration(s) gerada(s): {len(created)} arquivo(s)")
+            secho_ok(f"  Migration(s) generated: {len(created)} file(s)")
             for p in created:
                 rel = p.relative_to(root) if root in p.parents else p
                 secho_info(f"    {rel}")
         else:
-            secho_warn("  Nenhuma migration nova (rode 'alf migrations generate' se precisar).")
+            secho_warn("  No new migrations (run 'alf migrations generate' if needed).")
     except Exception as e:
-        secho_warn(f"  Migration não gerada: {e}. Rode 'alf migrations generate' depois.")
+        secho_warn(f"  Migration not generated: {e}. Run 'alf migrations generate' later.")

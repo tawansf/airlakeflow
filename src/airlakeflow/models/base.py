@@ -26,7 +26,9 @@ def ref(schema_table_column: str) -> Ref:
         return Ref(parts[0], parts[1], "id")
     if len(parts) == 3:
         return Ref(parts[0], parts[1], parts[2])
-    raise ValueError(f"ref() expects 'schema.table' or 'schema.table.column', got {schema_table_column!r}")
+    raise ValueError(
+        f"ref() expects 'schema.table' or 'schema.table.column', got {schema_table_column!r}"
+    )
 
 
 class FieldDesc:
@@ -64,7 +66,9 @@ class Field:
         return FieldDesc("serial", primary_key=primary_key, nullable=False)
 
     @staticmethod
-    def int(*, primary_key: bool = False, nullable: bool = True, ref: Ref | None = None) -> FieldDesc:
+    def int(
+        *, primary_key: bool = False, nullable: bool = True, ref: Ref | None = None
+    ) -> FieldDesc:
         return FieldDesc("int", primary_key=primary_key, nullable=nullable, ref=ref)
 
     integer = int  # alias
@@ -135,6 +139,7 @@ class ModelMeta(type):
 
 def _to_snake(name: str) -> str:
     import re
+
     s = re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
     return s.replace("-", "_")
 
@@ -151,7 +156,9 @@ class Model(metaclass=ModelMeta):
     def get_schema(cls) -> str:
         layer = cls._alf_layer
         if not layer:
-            raise ValueError(f"Model {cls.__name__} has no layer; use @layer('bronze'|'silver'|'gold')")
+            raise ValueError(
+                f"Model {cls.__name__} has no layer; use @layer('bronze'|'silver'|'gold')"
+            )
         return layer
 
     @classmethod

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-
 # Statements allowed in dags/sql/migrations/ (only model-related DDL)
 _ALLOWED_PATTERNS = [
     re.compile(r"^\s*CREATE\s+TABLE\b", re.IGNORECASE | re.DOTALL),
@@ -25,10 +24,16 @@ _FORBIDDEN_PATTERNS = [
     (re.compile(r"^\s*INSERT\s+INTO\b", re.IGNORECASE | re.DOTALL), "INSERT"),
     (re.compile(r"^\s*UPDATE\s+\w", re.IGNORECASE | re.DOTALL), "UPDATE"),
     (re.compile(r"^\s*DELETE\s+FROM\b", re.IGNORECASE | re.DOTALL), "DELETE"),
-    (re.compile(r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b", re.IGNORECASE | re.DOTALL), "CREATE FUNCTION"),
+    (
+        re.compile(r"^\s*CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\b", re.IGNORECASE | re.DOTALL),
+        "CREATE FUNCTION",
+    ),
     (re.compile(r"^\s*CREATE\s+PROCEDURE\b", re.IGNORECASE | re.DOTALL), "CREATE PROCEDURE"),
     (re.compile(r"^\s*CREATE\s+TYPE\b", re.IGNORECASE | re.DOTALL), "CREATE TYPE"),
-    (re.compile(r"^\s*ALTER\s+(?:DATABASE|SCHEMA|USER|ROLE)\b", re.IGNORECASE | re.DOTALL), "ALTER (database/schema/user)"),
+    (
+        re.compile(r"^\s*ALTER\s+(?:DATABASE|SCHEMA|USER|ROLE)\b", re.IGNORECASE | re.DOTALL),
+        "ALTER (database/schema/user)",
+    ),
 ]
 
 
@@ -57,8 +62,10 @@ def _statement_kind(stmt: str) -> str | None:
         if pattern.search(stmt):
             return None
     # Unknown statement type (e.g. COMMENT ON, ALTER TABLE) - treat as forbidden to be safe
-    if re.match(r"^\s*(ALTER|COMMENT|TRUNCATE|CREATE\s+(?!TABLE|VIEW|INDEX)\w+)", stmt, re.IGNORECASE):
-        return "outro comando (apenas CREATE TABLE, CREATE VIEW, CREATE INDEX são permitidos)"
+    if re.match(
+        r"^\s*(ALTER|COMMENT|TRUNCATE|CREATE\s+(?!TABLE|VIEW|INDEX)\w+)", stmt, re.IGNORECASE
+    ):
+        return "other command (only CREATE TABLE, CREATE VIEW, CREATE INDEX are allowed)"
     return None
 
 
@@ -77,8 +84,8 @@ def validate_migration_content(content: str, filename: str = "") -> list[str]:
         return []
     prefix = f"{filename}: " if filename else ""
     return [
-        f"{prefix}Comandos não permitidos em migrations: {', '.join(sorted(forbidden_kinds))}. "
-        "Use scripts/ para comandos de camada (ex.: 002_create_schemas.sql)."
+        f"{prefix}Statements not allowed in migrations: {', '.join(sorted(forbidden_kinds))}. "
+        "Use scripts/ for layer commands (e.g. 002_create_schemas.sql)."
     ]
 
 
@@ -87,7 +94,7 @@ def validate_migration_file(path: Path) -> list[str]:
     try:
         content = path.read_text(encoding="utf-8")
     except Exception as e:
-        return [f"{path.name}: erro ao ler arquivo ({e})"]
+        return [f"{path.name}: error reading file ({e})"]
     return validate_migration_content(content, path.name)
 
 

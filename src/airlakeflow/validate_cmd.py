@@ -128,18 +128,22 @@ def run_validate(
         ok, missing = _structure_ok(root)
         if verbose:
             if ok:
-                secho_ok(f"  {SYM_OK} Estrutura do projeto (dags/, soda/, scripts/, docker-compose.yaml)")
+                secho_ok(
+                    f"  {SYM_OK} Project structure (dags/, soda/, scripts/, docker-compose.yaml)"
+                )
             else:
-                secho_fail(f"  {SYM_FAIL} Estrutura: faltando " + ", ".join(missing))
+                secho_fail(f"  {SYM_FAIL} Structure: missing " + ", ".join(missing))
         if not ok:
             all_ok = False
 
         ok2, missing2 = _key_files_ok(root)
         if verbose:
             if ok2:
-                secho_ok(f"  {SYM_OK} Arquivos principais (setup_database.py, soda/configuration.yaml)")
+                secho_ok(
+                    f"  {SYM_OK} Key files (setup_database.py, soda/configuration.yaml)"
+                )
             else:
-                secho_fail(f"  {SYM_FAIL} Arquivos faltando: " + ", ".join(missing2))
+                secho_fail(f"  {SYM_FAIL} Missing files: " + ", ".join(missing2))
         if not ok2:
             all_ok = False
 
@@ -177,5 +181,7 @@ def run_validate(
         if all_ok:
             secho_ok(f"{SYM_OK} Validação passou.")
         else:
-            secho_fail(f"{SYM_FAIL} Validação falhou. Corrija os itens acima e rode 'alf validate' de novo.")
+            secho_fail(
+                f"{SYM_FAIL} Validation failed. Fix the items above and run 'alf validate' again."
+            )
     return all_ok
