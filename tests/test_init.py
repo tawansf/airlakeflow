@@ -2,7 +2,7 @@
 
 from click.testing import CliRunner
 
-from airlakeflow.cli import main
+from airlakeflow.cli import cli
 
 
 def test_init_creates_project_with_config(tmp_path, monkeypatch):
@@ -11,7 +11,7 @@ def test_init_creates_project_with_config(tmp_path, monkeypatch):
     dest = tmp_path / "out"
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         [
             "init",
             str(dest),
@@ -39,7 +39,7 @@ def test_init_non_interactive_defaults(tmp_path, monkeypatch):
     monkeypatch.setattr("sys.stdin.isatty", lambda: False)
     dest = tmp_path / "out2"
     runner = CliRunner()
-    r = runner.invoke(main, ["init", str(dest)])
+    r = runner.invoke(cli, ["init", str(dest)])
     assert r.exit_code == 0
     assert (dest / "dags").is_dir()
     assert (dest / ".airlakeflow.yaml").exists()
@@ -51,7 +51,7 @@ def test_init_creates_default_model_when_no_models(tmp_path, monkeypatch):
     dest = tmp_path / "out_model"
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         ["init", str(dest), "-D", "-M", "-b", "pandas"],
     )
     assert r.exit_code == 0
@@ -69,7 +69,7 @@ def test_init_creates_venv(tmp_path, monkeypatch):
     dest = tmp_path / "out_venv"
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         ["init", str(dest), "-D", "-M", "-b", "pandas"],
     )
     assert r.exit_code == 0
@@ -85,7 +85,7 @@ def test_init_config_has_architecture(tmp_path, monkeypatch):
     dest = tmp_path / "out_arch"
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         ["init", str(dest), "-D", "-M", "-b", "pandas"],
     )
     assert r.exit_code == 0

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from airlakeflow.cli import main
+from airlakeflow.cli import cli
 
 
 def _minimal_project(tmp_path: Path) -> Path:
@@ -22,7 +22,7 @@ def test_new_etl_creates_files(tmp_path):
     proj = _minimal_project(tmp_path)
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         [
             "new",
             "etl",

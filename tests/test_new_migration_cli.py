@@ -4,7 +4,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from airlakeflow.cli import main
+from airlakeflow.cli import cli
 
 
 def _minimal_project_with_dag(tmp_path: Path) -> Path:
@@ -23,7 +23,7 @@ def test_new_migration_creates_file(tmp_path):
     proj = _minimal_project_with_dag(tmp_path)
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         [
             "new",
             "migration",

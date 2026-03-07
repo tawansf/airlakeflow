@@ -2,7 +2,7 @@
 
 from click.testing import CliRunner
 
-from airlakeflow.cli import main
+from airlakeflow.cli import cli
 from airlakeflow.validate_cmd import run_validate
 
 
@@ -51,7 +51,7 @@ def test_validate_cli_exit_zero(tmp_path):
     (tmp_path / "docker-compose.yaml").write_text("services: {}")
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         ["validate", "-r", str(tmp_path), "-N", "-S", "-q"],
     )
     assert r.exit_code == 0

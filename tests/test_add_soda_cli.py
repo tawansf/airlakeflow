@@ -4,7 +4,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from airlakeflow.cli import main
+from airlakeflow.cli import cli
 
 
 def _project_with_etl_no_soda(tmp_path: Path) -> Path:
@@ -43,7 +43,7 @@ def test_add_soda_creates_contracts_and_injects(tmp_path):
     """alf add soda --etl crypto creates config/contracts and injects Soda into pipeline."""
     proj = _project_with_etl_no_soda(tmp_path)
     runner = CliRunner()
-    r = runner.invoke(main, ["add", "soda", "-e", "crypto", "-r", str(proj)])
+    r = runner.invoke(cli, ["add", "soda", "-e", "crypto", "-r", str(proj)])
     assert r.exit_code == 0
     assert (proj / "soda" / "configuration.yaml").exists()
     assert (proj / "soda" / "contracts" / "crypto_bronze.yaml").exists()

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from click.testing import CliRunner
 
-from airlakeflow.cli import main
+from airlakeflow.cli import cli
 from airlakeflow.new_model_cmd import run_new_model
 
 
@@ -40,7 +40,7 @@ def test_new_model_cli(tmp_path):
     proj = _minimal_project(tmp_path)
     runner = CliRunner()
     r = runner.invoke(
-        main,
+        cli,
         ["new", "model", "produto", "-l", "silver", "-r", str(proj)],
     )
     assert r.exit_code == 0

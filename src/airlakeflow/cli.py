@@ -114,6 +114,10 @@ def _cli(ctx: click.Context):
         ctx.exit(0)
 
 
+# Public alias for testing and programmatic invocation (CliRunner expects a Command, not main()).
+cli = _cli
+
+
 @_cli.command("help", help="Show this message and exit.")
 @click.pass_context
 def _show_help(ctx: click.Context):
