@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from airlakeflow.style import secho_fail, secho_heading, secho_ok
+from airlakeflow.style import SYM_FAIL, SYM_OK, secho_fail, secho_heading, secho_ok
 
 # Expected dirs and files for an AirLakeFlow project
 REQUIRED_DIRS = ["dags", "soda", "scripts"]
@@ -122,24 +122,24 @@ def run_validate(
     all_ok = True
 
     if verbose:
-        secho_heading(f"Validating project: {root}\n")
+        secho_heading(f"Validando projeto: {root}\n")
 
     if check_structure:
         ok, missing = _structure_ok(root)
         if verbose:
             if ok:
-                secho_ok("  [OK] Project structure (dags/, soda/, scripts/, docker-compose.yaml)")
+                secho_ok(f"  {SYM_OK} Estrutura do projeto (dags/, soda/, scripts/, docker-compose.yaml)")
             else:
-                secho_fail("  [FAIL] Project structure missing: " + ", ".join(missing))
+                secho_fail(f"  {SYM_FAIL} Estrutura: faltando " + ", ".join(missing))
         if not ok:
             all_ok = False
 
         ok2, missing2 = _key_files_ok(root)
         if verbose:
             if ok2:
-                secho_ok("  [OK] Key files (setup_database.py, soda/configuration.yaml)")
+                secho_ok(f"  {SYM_OK} Arquivos principais (setup_database.py, soda/configuration.yaml)")
             else:
-                secho_fail("  [FAIL] Missing key files: " + ", ".join(missing2))
+                secho_fail(f"  {SYM_FAIL} Arquivos faltando: " + ", ".join(missing2))
         if not ok2:
             all_ok = False
 
@@ -147,18 +147,18 @@ def run_validate(
         ok, msg = _docker_available()
         if verbose:
             if ok:
-                secho_ok("  [OK] Docker: " + msg)
+                secho_ok(f"  {SYM_OK} Docker: " + msg)
             else:
-                secho_fail("  [FAIL] Docker: " + msg)
+                secho_fail(f"  {SYM_FAIL} Docker: " + msg)
         if not ok:
             all_ok = False
         else:
             ok2, msg2 = _compose_available(root)
             if verbose:
                 if ok2:
-                    secho_ok("  [OK] Docker Compose: " + msg2)
+                    secho_ok(f"  {SYM_OK} Docker Compose: " + msg2)
                 else:
-                    secho_fail("  [FAIL] Docker Compose: " + msg2)
+                    secho_fail(f"  {SYM_FAIL} Docker Compose: " + msg2)
             if not ok2:
                 all_ok = False
 
@@ -166,16 +166,16 @@ def run_validate(
         ok, msg = _compose_services_up(root)
         if verbose:
             if ok:
-                secho_ok("  [OK] Stack: " + msg)
+                secho_ok(f"  {SYM_OK} Stack: " + msg)
             else:
-                secho_fail("  [FAIL] Stack: " + msg)
+                secho_fail(f"  {SYM_FAIL} Stack: " + msg)
         if not ok:
             all_ok = False
 
     if verbose:
         click.echo()
         if all_ok:
-            secho_ok("Validation passed.")
+            secho_ok(f"{SYM_OK} Validação passou.")
         else:
-            secho_fail("Validation failed. Fix the items above and run 'alf validate' again.")
+            secho_fail(f"{SYM_FAIL} Validação falhou. Corrija os itens acima e rode 'alf validate' de novo.")
     return all_ok

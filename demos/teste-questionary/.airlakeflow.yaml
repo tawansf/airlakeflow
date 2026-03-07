@@ -1,0 +1,5 @@
+# AirLakeFlow project config
+silver_backend: pyspark
+# soda_data_source: postgres_datawarehouse
+# soda_config_path: soda/configuration.yaml
+# contracts_dir: soda/contracts

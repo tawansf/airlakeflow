@@ -3,6 +3,7 @@ from pathlib import Path
 
 import click
 
+from airlakeflow import __version__ as _pkg_version
 from airlakeflow.add_soda import run_add_soda
 from airlakeflow.config import load_config, resolve_project_root
 from airlakeflow.docker_cmd import (
@@ -19,7 +20,7 @@ from airlakeflow.doctor_cmd import run_doctor
 from airlakeflow.init_cmd import run_init
 from airlakeflow.new_etl import run_new_etl
 from airlakeflow.new_migration import discover_dags, run_new_migration
-from airlakeflow.style import secho_fail, secho_warn
+from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_warn
 from airlakeflow.upgrade_cmd import run_upgrade
 from airlakeflow.validate_cmd import run_validate
 
@@ -70,16 +71,34 @@ class AlfGroup(click.Group):
         write_block(docker_rows, "Docker (stack)")
 
 
-@click.group(cls=AlfGroup)
-@click.version_option(version="0.1.0", prog_name="AirLakeFlow")
-def main():
+def _get_version() -> str:
+    try:
+        from importlib.metadata import version
+        return version("airlakeflow")
+    except Exception:
+        return _pkg_version
+
+
+@click.group(cls=AlfGroup, invoke_without_command=True)
+@click.version_option(version=_get_version(), prog_name="AirLakeFlow")
+@click.pass_context
+def main(ctx: click.Context):
     """AirLakeFlow — CLI for the framework (Bronze / Silver / Gold)."""
-    pass
+    if ctx.invoked_subcommand is None:
+        print_banner(_get_version())
+        click.echo(ctx.get_help())
+        ctx.exit(0)
 
 
 @main.group()
 def new():
     """Create new resource (ETL, Migration, Contract, Layer)."""
+    pass
+
+
+@main.group("list")
+def list_group():
+    """List project resources (ETLs, etc.)."""
     pass
 
 
@@ -91,6 +110,19 @@ def _project_root_option(**kwargs):
         help="Project root (default: current directory)",
         **kwargs,
     )
+
+
+@list_group.command("etls")
+@_project_root_option()
+def list_etls(project_root: str):
+    """List ETL pipelines (dags/ folders that contain pipeline.py)."""
+    root = Path(resolve_project_root(project_root))
+    etls = discover_dags(root)
+    if not etls:
+        secho_fail("Nenhum ETL encontrado em dags/. Crie um com 'alf new etl NOME'.")
+        raise SystemExit(1)
+    for name in etls:
+        click.echo(f"  {SYM_LIST} {name}")
 
 
 @new.command("etl")
@@ -423,23 +455,76 @@ def ps(project_root: str):
     default=None,
     help="Silver layer: pandas or pyspark. If omitted, init will ask interactively.",
 )
-def init(project_name: str, demo: bool | None, with_monitoring: bool | None, backend: str | None):
+@click.option(
+    "--minimal/--full",
+    "use_minimal_stack",
+    default=None,
+    help="Versão: mínima (4 containers) ou completa (7 containers). Se omitido, pergunta no init.",
+)
+def init(
+    project_name: str,
+    demo: bool | None,
+    with_monitoring: bool | None,
+    backend: str | None,
+    use_minimal_stack: bool | None,
+):
     """Create a new project. Run without flags to choose options interactively."""
     interactive = sys.stdin.isatty()
+    try:
+        import questionary
+        _has_select = True
+    except ImportError:
+        _has_select = False
+
     if demo is None:
-        demo = (
-            click.confirm("Incluir DAGs de demonstração (crypto)?", default=True)
-            if interactive
-            else True
-        )
+        if interactive and _has_select:
+            choice = questionary.select(
+                "Incluir DAGs de demonstração (crypto)?",
+                choices=[
+                    questionary.Choice("Sim", value=True),
+                    questionary.Choice("Não", value=False),
+                ],
+                default=True,
+                pointer="→",
+            ).ask()
+            demo = choice if choice is not None else True
+        else:
+            demo = (
+                click.confirm("Incluir DAGs de demonstração (crypto)?", default=True)
+                if interactive
+                else True
+            )
     if with_monitoring is None:
-        with_monitoring = (
-            click.confirm("Adicionar Soda (qualidade de dados)?", default=False)
-            if interactive
-            else False
-        )
+        if interactive and _has_select:
+            choice = questionary.select(
+                "Adicionar Soda (qualidade de dados)?",
+                choices=[
+                    questionary.Choice("Sim", value=True),
+                    questionary.Choice("Não", value=False),
+                ],
+                default=False,
+                pointer="→",
+            ).ask()
+            with_monitoring = choice if choice is not None else False
+        else:
+            with_monitoring = (
+                click.confirm("Adicionar Soda (qualidade de dados)?", default=False)
+                if interactive
+                else False
+            )
     if backend is None:
-        if interactive:
+        if interactive and _has_select:
+            choice = questionary.select(
+                "Backend da camada Silver",
+                choices=[
+                    questionary.Choice("pandas (leve, single machine)", value="pandas"),
+                    questionary.Choice("pyspark (distribuído)", value="pyspark"),
+                ],
+                default="pandas",
+                pointer="→",
+            ).ask()
+            backend = choice if choice else "pandas"
+        elif interactive:
             backend = click.prompt(
                 "Backend da camada Silver",
                 type=click.Choice(["pandas", "pyspark"], case_sensitive=False),
@@ -448,4 +533,33 @@ def init(project_name: str, demo: bool | None, with_monitoring: bool | None, bac
             )
         else:
             backend = "pandas"
-    run_init(dest=project_name, with_demo=demo, with_monitoring=with_monitoring, backend=backend)
+    if use_minimal_stack is None:
+        if interactive and _has_select:
+            choice = questionary.select(
+                "Versão do projeto",
+                choices=[
+                    questionary.Choice("mínima (4 containers, LocalExecutor)", value="minima"),
+                    questionary.Choice("completa (7 containers, Celery)", value="completa"),
+                ],
+                default="minima",
+                pointer="→",
+            ).ask()
+            use_minimal_stack = (choice or "minima") == "minima"
+        elif interactive:
+            stack_choice = click.prompt(
+                "Versão do projeto: mínima (4 containers, LocalExecutor) ou completa (7 containers, Celery)?",
+                type=click.Choice(["minima", "completa"], case_sensitive=False),
+                default="minima",
+                show_choices=True,
+                show_default=True,
+            )
+            use_minimal_stack = stack_choice == "minima"
+        else:
+            use_minimal_stack = True
+    run_init(
+        dest=project_name,
+        with_demo=demo,
+        with_monitoring=with_monitoring,
+        backend=backend,
+        use_minimal_stack=use_minimal_stack,
+    )

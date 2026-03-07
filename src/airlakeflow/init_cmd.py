@@ -2,12 +2,19 @@ import shutil
 from pathlib import Path
 
 from airlakeflow.docker_cmd import create_env_from_example
-from airlakeflow.style import secho_heading, secho_info, secho_ok
+from airlakeflow.style import SYM_OK, secho_heading, secho_info, secho_ok
 
 
-def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "pandas") -> None:
+def run_init(
+    dest: str,
+    with_demo: bool,
+    with_monitoring: bool,
+    backend: str = "pandas",
+    use_minimal_stack: bool = False,
+) -> None:
     """Create a new project: folder with framework structure (from repo or package skeleton).
     backend: 'pandas' (lighter, default) or 'pyspark' (distributed processing).
+    use_minimal_stack: True = LocalExecutor, 4 containers; False = CeleryExecutor, 7 containers.
     """
     cwd = Path.cwd().resolve()
     # If dest is a simple name (no path sep), create folder inside cwd
@@ -16,6 +23,7 @@ def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "
     else:
         dest_path = Path(dest).resolve()
 
+    _skeleton_dir = Path(__file__).resolve().parent / "skeleton"
     if dest_path == cwd:
         # With src layout: __file__ is src/airlakeflow/init_cmd.py -> parent.parent.parent = repo root
         framework_root = Path(__file__).resolve().parent.parent.parent
@@ -23,7 +31,7 @@ def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "
         framework_root = cwd
         # If cwd doesn't look like the framework repo, use package skeleton
         if not (framework_root / "dags").is_dir() or not (framework_root / "soda").is_dir():
-            framework_root = Path(__file__).resolve().parent / "skeleton"
+            framework_root = _skeleton_dir
 
     dirs_to_copy = [
         "dags",
@@ -34,14 +42,19 @@ def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "
         "data",
         "logs",
     ]
+    # Choose compose and image: minimal stack = LocalExecutor, lighter image when pandas + no Soda
+    if use_minimal_stack:
+        _minimal_yaml = framework_root / "docker-compose.minimal.yaml"
+        compose_src = _minimal_yaml if _minimal_yaml.exists() else _skeleton_dir / "docker-compose.minimal.yaml"
+        use_light_image = backend == "pandas" and not with_monitoring
+    else:
+        compose_src = framework_root / "docker-compose.yaml"
+        use_light_image = False
+
     files_to_copy = [
-        "docker-compose.yaml",
-        "Dockerfile",
         ".env.example",
-        "requirements.txt",
         "README.md",
     ]
-
     dest_path.mkdir(parents=True, exist_ok=True)
     for d in dirs_to_copy:
         src = framework_root / d
@@ -59,13 +72,43 @@ def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "
         if src.exists():
             shutil.copy2(src, dest_path / f)
 
+    # Compose: minimal or full
+    if compose_src.exists():
+        shutil.copy2(compose_src, dest_path / "docker-compose.yaml")
+    elif (framework_root / "docker-compose.yaml").exists():
+        shutil.copy2(framework_root / "docker-compose.yaml", dest_path / "docker-compose.yaml")
+
+    # Dockerfile + requirements: light image only for minimal + pandas + no monitoring
+    _df_min = framework_root / "Dockerfile.minimal"
+    if not _df_min.exists():
+        _df_min = _skeleton_dir / "Dockerfile.minimal"
+    if use_light_image and _df_min.exists():
+        shutil.copy2(_df_min, dest_path / "Dockerfile")
+        _req_min = framework_root / "requirements.minimal.txt"
+        req_src = _req_min if _req_min.exists() else _skeleton_dir / "requirements.minimal.txt"
+        if req_src.exists():
+            shutil.copy2(req_src, dest_path / "requirements.txt")
+        elif (framework_root / "requirements.txt").exists():
+            shutil.copy2(framework_root / "requirements.txt", dest_path / "requirements.txt")
+    else:
+        if (framework_root / "Dockerfile").exists():
+            shutil.copy2(framework_root / "Dockerfile", dest_path / "Dockerfile")
+        if (framework_root / "requirements.txt").exists():
+            shutil.copy2(framework_root / "requirements.txt", dest_path / "requirements.txt")
+
     # Silver backend: write config and adjust requirements
     backend = backend.lower().strip()
     if backend not in ("pandas", "pyspark"):
         backend = "pandas"
     config_path = dest_path / ".airlakeflow.yaml"
     config_path.write_text(
-        f"# AirLakeFlow project config\nsilver_backend: {backend}\n", encoding="utf-8"
+        f"""# AirLakeFlow project config
+silver_backend: {backend}
+# soda_data_source: postgres_datawarehouse
+# soda_config_path: soda/configuration.yaml
+# contracts_dir: soda/contracts
+""",
+        encoding="utf-8",
     )
     req_path = dest_path / "requirements.txt"
     if req_path.exists():
@@ -77,7 +120,7 @@ def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "
 
     # Create .env with AIRFLOW_UID = current user (Unix) or 50000 (Windows) so alf run works without permission errors
     if create_env_from_example(dest_path):
-        secho_info("  - .env created with AIRFLOW_UID for this machine")
+        secho_info("  ▸ .env criado com AIRFLOW_UID para esta máquina")
 
     if not with_demo:
         for name in ("crypto",):
@@ -98,11 +141,15 @@ def run_init(dest: str, with_demo: bool, with_monitoring: bool, backend: str = "
         ):
             m.unlink()
 
-    secho_ok(f"Project created: {dest_path}")
+    secho_ok(f"{SYM_OK} Projeto criado: {dest_path}")
     if framework_root.name == "skeleton":
-        secho_info("  (structure from AirLakeFlow package)")
+        secho_info("  (estrutura do pacote AirLakeFlow)")
+    if use_minimal_stack:
+        secho_info("  ▸ Stack: mínima (LocalExecutor, 4 containers)")
+    if use_light_image:
+        secho_info("  ▸ Imagem: mínima (sem Java, requirements.minimal)")
     if with_demo and (dest_path / "dags" / "crypto").exists():
-        secho_info("  - DAG demo (crypto) included")
+        secho_info("  ▸ DAG demo (crypto) incluída")
     if with_monitoring and (dest_path / "dags" / "monitoring").exists():
-        secho_info("  - Monitoring and Soda report included")
-    secho_info(f"  - Silver layer backend: {backend} (edit .airlakeflow.yaml to change)")
+        secho_info("  ▸ Monitoring e Soda incluídos")
+    secho_info(f"  ▸ Backend Silver: {backend} (edite .airlakeflow.yaml para alterar)")

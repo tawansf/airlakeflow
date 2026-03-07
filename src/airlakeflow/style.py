@@ -1,4 +1,4 @@
-"""Terminal styling for the CLI (colors, bold) using Click. Respects NO_COLOR and TTY."""
+"""Terminal styling for the CLI (colors, bold, symbols) using Click. Respects NO_COLOR and TTY."""
 
 from __future__ import annotations
 
@@ -6,6 +6,21 @@ import os
 import sys
 
 import click
+
+# Symbols for a more attractive CLI (fallback to ASCII if terminal is limited)
+SYM_OK = "✅"
+SYM_FAIL = "❌"
+SYM_WARN = "⚠️"
+SYM_INFO = "ℹ️"
+SYM_ROCKET = "🚀"
+SYM_PACKAGE = "📦"
+SYM_WRENCH = "🔧"
+SYM_LIST = "📋"
+SYM_PLAY = "▶️"
+SYM_STOP = "⛔"
+SYM_FOLDER = "📁"
+SYM_DOC = "📄"
+SYM_FLOW = "🌊"
 
 
 def _color_enabled() -> bool:
@@ -85,3 +100,34 @@ def secho_dim(text: str) -> None:
 
 def secho_heading(text: str) -> None:
     click.echo(heading(text))
+
+
+# ASCII art "AirLakeFlow" (block style font)
+_AIRLAKEFLOW_ASCII = r"""
+           _      _           _        ______ _               
+     /\   (_)    | |         | |      |  ____| |              
+    /  \   _ _ __| |     __ _| | _____| |__  | | _____      __
+   / /\ \ | | '__| |    / _` | |/ / _ \  __| | |/ _ \ \ /\ / /
+  / ____ \| | |  | |___| (_| |   <  __/ |    | | (_) \ V  V / 
+ /_/    \_\_|_|  |______\__,_|_|\_\___|_|    |_|\___/ \_/\_/  
+""".strip("\n")
+
+
+def print_banner(version: str) -> None:
+    """Banner for the 'alf' command with AirLakeFlow ASCII art."""
+    if not sys.stdout.isatty():
+        return
+    logo_color = "cyan" if os.environ.get("ALF_BANNER_CYAN") else "red"
+    click.echo()
+    for line in _AIRLAKEFLOW_ASCII.split("\n"):
+        click.echo(_style(line.rstrip(), fg=logo_color))
+    click.echo()
+    click.echo("  " + dim(f"v{version}") + "  " + dim("Bronze → Silver → Gold"))
+    click.echo()
+    click.echo(_style("  Quick start:", bold=True))
+    click.echo("    " + SYM_PACKAGE + " alf init <nome>     " + dim("Create new project"))
+    click.echo("    " + SYM_FOLDER  + " alf new etl <nome>  " + dim("Add ETL pipeline"))
+    click.echo("    " + SYM_PLAY    + "  alf run             " + dim("Start the stack (Docker)"))
+    click.echo()
+    click.echo("  Use: " + dim("alf --help") + " to see all commands.")
+    click.echo()

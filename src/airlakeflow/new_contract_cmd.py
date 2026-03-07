@@ -6,6 +6,7 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
+from airlakeflow.config import get_contracts_dir, load_config
 from airlakeflow.style import secho_ok, secho_warn
 
 
@@ -16,7 +17,8 @@ def _snake(s: str) -> str:
 def run_new_contract(schema: str, table: str, layer: str, project_root: Path) -> None:
     """Create a Soda contract file for the given schema.table in the given layer (bronze or silver)."""
     project_root = project_root.resolve()
-    contracts_dir = project_root / "soda" / "contracts"
+    cfg = load_config(project_root)
+    contracts_dir = project_root / get_contracts_dir(cfg)
     contracts_dir.mkdir(parents=True, exist_ok=True)
 
     entity_snake = _snake(table)

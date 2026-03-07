@@ -1,10 +1,22 @@
-"""Resolve project root and options from .airlakeflow.yaml or pyproject.toml [tool.airlakeflow]."""
+"""Resolve project root and options from .airlakeflow.yaml or pyproject.toml [tool.airlakeflow].
+
+Supported config keys (all optional):
+- silver_backend: pandas | pyspark
+- project_root: path (in pyproject only)
+- soda_data_source: Airflow connection / Soda data source name (default: postgres_datawarehouse)
+- soda_config_path: path to configuration.yaml relative to project root (default: soda/configuration.yaml)
+- contracts_dir: path to Soda contracts dir relative to project root (default: soda/contracts)
+"""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 from typing import Any
+
+DEFAULT_SODA_DATA_SOURCE = "postgres_datawarehouse"
+DEFAULT_SODA_CONFIG_PATH = "soda/configuration.yaml"
+DEFAULT_CONTRACTS_DIR = "soda/contracts"
 
 
 def _find_config_dir(start: Path) -> Path | None:
@@ -41,6 +53,21 @@ def _parse_pyproject_airlakeflow(content: str) -> dict[str, Any]:
     if m:
         out["silver_backend"] = m.group(1).strip()
     return out
+
+
+def get_soda_data_source(config: dict[str, Any]) -> str:
+    """Return Soda data source name from config, or default."""
+    return config.get("soda_data_source") or DEFAULT_SODA_DATA_SOURCE
+
+
+def get_soda_config_path(config: dict[str, Any]) -> str:
+    """Return path to Soda configuration.yaml from config, or default."""
+    return config.get("soda_config_path") or DEFAULT_SODA_CONFIG_PATH
+
+
+def get_contracts_dir(config: dict[str, Any]) -> str:
+    """Return path to Soda contracts directory from config, or default."""
+    return config.get("contracts_dir") or DEFAULT_CONTRACTS_DIR
 
 
 def load_config(project_root: Path) -> dict[str, Any]:

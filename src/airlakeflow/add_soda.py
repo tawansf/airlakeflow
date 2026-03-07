@@ -11,11 +11,13 @@ from pathlib import Path
 import click
 from jinja2 import Environment, PackageLoader, select_autoescape
 
+from airlakeflow.config import get_contracts_dir, get_soda_config_path, get_soda_data_source, load_config
 from airlakeflow.new_migration import discover_dags
 
 # Minimum stub for configuration.yaml (don't overwrite if it already exists)
-SODA_CONFIG_YAML = """# Soda data source config (name, type, connection)
-name: postgres_datawarehouse
+def _soda_config_yaml(data_source_name: str) -> str:
+    return f"""# Soda data source config (name, type, connection)
+name: {data_source_name}
 type: postgres
 connection:
   host: postgres
@@ -28,14 +30,15 @@ connection:
 
 def _ensure_project_soda(project_root: Path) -> None:
     """Ensure soda/configuration.yaml, soda/contracts/ and dags/monitoring/soda_persistence.py."""
-    soda_dir = project_root / "soda"
-    soda_dir.mkdir(parents=True, exist_ok=True)
-    contracts_dir = soda_dir / "contracts"
-    contracts_dir.mkdir(exist_ok=True)
+    cfg = load_config(project_root)
+    soda_config_path = project_root / get_soda_config_path(cfg)
+    soda_config_path.parent.mkdir(parents=True, exist_ok=True)
+    contracts_dir = project_root / get_contracts_dir(cfg)
+    contracts_dir.mkdir(parents=True, exist_ok=True)
 
-    config_path = soda_dir / "configuration.yaml"
-    if not config_path.exists():
-        config_path.write_text(SODA_CONFIG_YAML, encoding="utf-8")
+    if not soda_config_path.exists():
+        data_source = get_soda_data_source(cfg)
+        soda_config_path.write_text(_soda_config_yaml(data_source), encoding="utf-8")
 
     monitoring_dir = project_root / "dags" / "monitoring"
     persistence_path = monitoring_dir / "soda_persistence.py"
@@ -56,7 +59,9 @@ def _render_contract(env: Environment, template_name: str, entity_snake: str) ->
 
 def _ensure_etl_contracts(project_root: Path, etl_name: str, env: Environment) -> tuple[bool, bool]:
     """Create stub contracts if they don't exist. Returns (created_bronze, created_silver)."""
-    contracts_dir = project_root / "soda" / "contracts"
+    cfg = load_config(project_root)
+    contracts_dir = project_root / get_contracts_dir(cfg)
+    contracts_dir.mkdir(parents=True, exist_ok=True)
     bronze_path = contracts_dir / f"{etl_name}_bronze.yaml"
     silver_path = contracts_dir / f"{etl_name}_silver.yaml"
     created_bronze = False
@@ -91,6 +96,9 @@ def _inject_soda_into_pipeline(project_root: Path, etl_name: str) -> bool:
     ):
         return False
 
+    cfg = load_config(project_root)
+    data_source = get_soda_data_source(cfg)
+    # Injected paths assume SODA_PATH is the soda dir (e.g. /opt/airflow/soda) with configuration.yaml and contracts/
     # 1) Import: after the last "from X import" in the same module (e.g.: from csgostats.gold import ...)
     last_from = None
     for m in re.finditer(r"^from [\w.]+ import .+$", content, re.MULTILINE):
@@ -104,7 +112,7 @@ def _inject_soda_into_pipeline(project_root: Path, etl_name: str) -> bool:
 
 def _soda_scan_bronze(**context):
     run_soda_scan_and_persist(
-        data_source="postgres_datawarehouse",
+        data_source="{data_source}",
         config_path=f"{{SODA_PATH}}/configuration.yaml",
         contract_path=f"{{SODA_PATH}}/contracts/{etl_name}_bronze.yaml",
         dag_id=context["dag"].dag_id,
@@ -114,7 +122,7 @@ def _soda_scan_bronze(**context):
 
 def _soda_scan_silver(**context):
     run_soda_scan_and_persist(
-        data_source="postgres_datawarehouse",
+        data_source="{data_source}",
         config_path=f"{{SODA_PATH}}/configuration.yaml",
         contract_path=f"{{SODA_PATH}}/contracts/{etl_name}_silver.yaml",
         dag_id=context["dag"].dag_id,
