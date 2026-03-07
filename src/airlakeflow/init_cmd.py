@@ -137,9 +137,7 @@ def run_init(
         else:
             # Fallback: minimal deps for local run
             (dest_path / "requirements.txt").write_text(
-                "apache-airflow>=2.7.0\n"
-                "psycopg2-binary>=2.9.0\n"
-                "pandas>=2.0.0\n",
+                "apache-airflow>=2.7.0\n" "psycopg2-binary>=2.9.0\n" "pandas>=2.0.0\n",
                 encoding="utf-8",
             )
 
@@ -236,7 +234,9 @@ architecture: medallion
         if backend == "pandas" and not with_monitoring and use_minimal_stack:
             secho_info("  ▸ Image: minimal (no Java, requirements.minimal)")
     else:
-        secho_info("  ▸ Runtime: local (no Docker). Run: alf run  (or: pip install -r requirements.txt then airflow db init && airflow standalone)")
+        secho_info(
+            "  ▸ Runtime: local (no Docker). Run: alf run  (or: pip install -r requirements.txt then airflow db init && airflow standalone)"
+        )
     if with_demo and (dest_path / "dags" / "crypto").exists():
         secho_info("  ▸ Demo DAG (crypto) included")
     if with_monitoring and (dest_path / "dags" / "monitoring").exists():

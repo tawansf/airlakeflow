@@ -279,7 +279,9 @@ def new_etl(
 
 @new.command("migration")
 @click.argument("name", type=str)
-@click.option("-d", "dag", default=None, help="DAG name (directory in dags/). If omitted, list to choose.")
+@click.option(
+    "-d", "dag", default=None, help="DAG name (directory in dags/). If omitted, list to choose."
+)
 @click.option(
     "-l",
     "layer",
@@ -560,7 +562,12 @@ def upgrade(project_root: str, dry_run: bool, no_backup: bool):
 @_cli.command("run")
 @_project_root_option()
 @click.option("-b", "build", is_flag=True, help="Build images before starting (Docker only)")
-@click.option("-f", "foreground", is_flag=True, help="Run in foreground (Docker: no -d; local: always foreground)")
+@click.option(
+    "-f",
+    "foreground",
+    is_flag=True,
+    help="Run in foreground (Docker: no -d; local: always foreground)",
+)
 def run(project_root: str, build: bool, foreground: bool):
     """Start the application (Docker: compose up; local: install deps, airflow db init, airflow standalone)."""
     root = Path(resolve_project_root(project_root))
@@ -708,16 +715,18 @@ def init(
         _has_select = True
         # First item in each list is the default (no default= needed — avoids the
         # "selected" token branch in InquirerControl which conflicts with highlighted).
-        _select_style = Style([
-            ("qmark", "fg:#5f819d"),
-            ("question", "bold"),
-            ("answer", "fg:#FF9D00 bold"),
-            ("pointer", "bold fg:cyan"),
-            ("highlighted", "bold fg:cyan"),
-            ("selected", ""),
-            ("text", ""),
-            ("instruction", ""),
-        ])
+        _select_style = Style(
+            [
+                ("qmark", "fg:#5f819d"),
+                ("question", "bold"),
+                ("answer", "fg:#FF9D00 bold"),
+                ("pointer", "bold fg:cyan"),
+                ("highlighted", "bold fg:cyan"),
+                ("selected", ""),
+                ("text", ""),
+                ("instruction", ""),
+            ]
+        )
     except ImportError:
         _has_select = False
         _select_style = None
@@ -812,9 +821,7 @@ def init(
             with_monitoring = choice
         else:
             with_monitoring = (
-                click.confirm("Add Soda (data quality)?", default=False)
-                if interactive
-                else False
+                click.confirm("Add Soda (data quality)?", default=False) if interactive else False
             )
     # 5. Demo DAGs (crypto)
     if demo is None:
@@ -834,9 +841,7 @@ def init(
             demo = choice
         else:
             demo = (
-                click.confirm("Include demo DAGs (crypto)?", default=True)
-                if interactive
-                else True
+                click.confirm("Include demo DAGs (crypto)?", default=True) if interactive else True
             )
     run_init(
         dest=project_name,
@@ -855,4 +860,3 @@ def main():
     except KeyboardInterrupt:
         click.echo("\nAborted.", err=True)
         sys.exit(130)
-

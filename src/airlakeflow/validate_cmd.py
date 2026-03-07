@@ -136,7 +136,9 @@ def run_validate(
     if check_structure:
         ok, missing = _structure_ok(root, required_files=required_files)
         if verbose:
-            desc = "dags/, soda/, scripts/" + (", docker-compose.yaml" if runtime == "docker" else "")
+            desc = "dags/, soda/, scripts/" + (
+                ", docker-compose.yaml" if runtime == "docker" else ""
+            )
             if ok:
                 secho_ok(f"  {SYM_OK} Project structure ({desc})")
             else:
@@ -147,9 +149,7 @@ def run_validate(
         ok2, missing2 = _key_files_ok(root)
         if verbose:
             if ok2:
-                secho_ok(
-                    f"  {SYM_OK} Key files (setup_database.py, soda/configuration.yaml)"
-                )
+                secho_ok(f"  {SYM_OK} Key files (setup_database.py, soda/configuration.yaml)")
             else:
                 secho_fail(f"  {SYM_FAIL} Missing files: " + ", ".join(missing2))
         if not ok2:

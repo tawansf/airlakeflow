@@ -59,7 +59,9 @@ def run_local(project_root: Path, skip_install: bool = False) -> int:
                 cwd=root,
             )
             if r.returncode != 0:
-                secho_fail("pip install failed. Run manually: .venv/bin/pip install -r requirements.txt")
+                secho_fail(
+                    "pip install failed. Run manually: .venv/bin/pip install -r requirements.txt"
+                )
                 return r.returncode
 
     env = _venv_env(venv_py, root)
@@ -80,7 +82,9 @@ def run_local(project_root: Path, skip_install: bool = False) -> int:
             [str(venv_py), "-m", "airflow", "standalone"],
             cwd=root,
             env=env,
-            start_new_session=(os.name != "nt"),  # new process group on Unix so we can killpg on Ctrl+C
+            start_new_session=(
+                os.name != "nt"
+            ),  # new process group on Unix so we can killpg on Ctrl+C
         )
     except OSError as e:
         secho_fail(f"Failed to start airflow standalone: {e}")
