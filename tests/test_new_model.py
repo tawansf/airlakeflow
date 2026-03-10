@@ -64,7 +64,9 @@ def test_new_model_generates_migration(tmp_path):
 def test_new_model_partition_by(tmp_path):
     """alf new model with --partition-by creates model with partition key and migration with PARTITION BY RANGE."""
     proj = _minimal_project(tmp_path)
-    run_new_model(name="vendas", layer_name="silver", project_root=proj, partition_by="data_registro")
+    run_new_model(
+        name="vendas", layer_name="silver", project_root=proj, partition_by="data_registro"
+    )
     model_file = proj / "config" / "models" / "vendas.py"
     assert model_file.exists()
     content = model_file.read_text()

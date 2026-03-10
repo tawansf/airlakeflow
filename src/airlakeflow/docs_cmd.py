@@ -5,7 +5,7 @@ from pathlib import Path
 from jinja2 import Environment, PackageLoader, select_autoescape
 
 from airlakeflow.model_loader import discover_models
-from airlakeflow.style import secho_ok, secho_info
+from airlakeflow.style import secho_info, secho_ok
 
 
 def _migrations_entries(migrations_dir: Path) -> list[dict]:
@@ -14,6 +14,7 @@ def _migrations_entries(migrations_dir: Path) -> list[dict]:
     if not migrations_dir.exists():
         return entries
     import re
+
     for path in sorted(migrations_dir.glob("V*.sql")):
         name = path.stem  # V001__setup_silver_example
         m = re.match(r"V\d+__.*_(?P<schema>bronze|silver|gold)_(?P<table>\w+)", name, re.I)
@@ -75,6 +76,7 @@ def run_docs(project_root: Path, output_dir: str | None = None, fmt: str = "html
         secho_ok(f"Catalog written to {out_file}")
     else:
         import json
+
         out_file = out / "catalog.json"
         out_file.write_text(json.dumps(catalog, indent=2), encoding="utf-8")
         secho_ok(f"Catalog written to {out_file}")

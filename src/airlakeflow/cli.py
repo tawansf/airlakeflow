@@ -5,13 +5,13 @@ import click
 
 from airlakeflow import __version__ as _pkg_version
 from airlakeflow.add_soda import run_add_soda
-from airlakeflow.data_tests_cmd import run_data_tests_cmd
 from airlakeflow.config import (
     get_architecture_from_config,
     get_runtime,
     load_config,
     resolve_project_root,
 )
+from airlakeflow.data_tests_cmd import run_data_tests_cmd
 from airlakeflow.docker_cmd import (
     run_down,
     run_exec,
@@ -217,7 +217,9 @@ def list_etls(project_root: str):
     default=False,
     help="Generate Soda contracts. Omit to be asked.",
 )
-@click.option("-g", "with_gold", is_flag=True, default=True, help="Include Gold layer. Omit to be asked.")
+@click.option(
+    "-g", "with_gold", is_flag=True, default=True, help="Include Gold layer. Omit to be asked."
+)
 @click.option("-G", "no_gold", is_flag=True, default=False, help="Exclude Gold")
 @click.option(
     "-s",
@@ -289,6 +291,7 @@ def new_etl(
     if sys.stdin.isatty():
         try:
             import questionary
+
             table = table_name or (questionary.text("Table name?", default=name).ask() or name)
             with_gold = questionary.select(
                 "Include Gold layer?",
@@ -311,16 +314,26 @@ def new_etl(
             ).ask()
             if source is None:
                 raise KeyboardInterrupt
-            pattern = questionary.select(
-                "Pattern Silver",
-                choices=[questionary.Choice("default", "default"), questionary.Choice("snapshot (SCD2)", "snapshot")],
-                default=pattern,
-            ).ask() or "default"
+            pattern = (
+                questionary.select(
+                    "Pattern Silver",
+                    choices=[
+                        questionary.Choice("default", "default"),
+                        questionary.Choice("snapshot (SCD2)", "snapshot"),
+                    ],
+                    default=pattern,
+                ).ask()
+                or "default"
+            )
             if pattern is None:
                 raise KeyboardInterrupt
-            p = questionary.text("Partition by column (optional, Enter to skip):", default=partition_by or "").ask()
+            p = questionary.text(
+                "Partition by column (optional, Enter to skip):", default=partition_by or ""
+            ).ask()
             partition_by = p.strip() or None if p is not None else partition_by
-            inc = questionary.text("Incremental by column (optional, Enter to skip):", default=incremental_by or "").ask()
+            inc = questionary.text(
+                "Incremental by column (optional, Enter to skip):", default=incremental_by or ""
+            ).ask()
             incremental_by = inc.strip() or None if inc is not None else incremental_by
         except ImportError:
             table = table_name or name
@@ -349,9 +362,7 @@ def new_etl(
 
 @new.command("migration")
 @click.argument("name", type=str)
-@click.option(
-    "-d", "dag", default=None, help="DAG name. Omit to be asked interactively."
-)
+@click.option("-d", "dag", default=None, help="DAG name. Omit to be asked interactively.")
 @click.option(
     "-l",
     "layer",
@@ -378,6 +389,7 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
         if sys.stdin.isatty():
             try:
                 import questionary
+
                 dag = questionary.select("Which DAG?", choices=dags).ask()
                 if dag is None:
                     raise KeyboardInterrupt
@@ -389,6 +401,7 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
         if sys.stdin.isatty():
             try:
                 import questionary
+
                 layer = questionary.select("Layer?", choices=MEDALLION_LAYERS).ask()
                 if layer is None:
                     raise KeyboardInterrupt
@@ -404,6 +417,7 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
 def _tables_by_schema(project_root: Path) -> dict[str, list[str]]:
     """Return {schema: [table1, table2, ...]} from config/models."""
     from airlakeflow.model_loader import discover_models
+
     out: dict[str, list[str]] = {}
     for m in discover_models(Path(project_root)):
         s, t = m.get_schema(), m.get_table_name()
@@ -431,11 +445,15 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
     if sys.stdin.isatty() and (schema is None or table is None):
         try:
             import questionary
-            schema = schema or questionary.select(
-                "Schema (layer)?",
-                choices=MEDALLION_LAYERS,
-                default="bronze",
-            ).ask()
+
+            schema = (
+                schema
+                or questionary.select(
+                    "Schema (layer)?",
+                    choices=MEDALLION_LAYERS,
+                    default="bronze",
+                ).ask()
+            )
             if schema is None:
                 raise KeyboardInterrupt
             tables_by_schema = _tables_by_schema(root)
@@ -468,6 +486,7 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
     if contract_type is None and sys.stdin.isatty():
         try:
             import questionary
+
             contract_type = questionary.select(
                 "Contract type?",
                 choices=[
@@ -483,10 +502,12 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
         contract_type = "soda"
     if contract_type == "alf_checks":
         from airlakeflow.data_tests_cmd import create_alf_check_file
+
         path = create_alf_check_file(root, schema, table)
         secho_ok(f"ALF-Check created: {path}")
         return
     from airlakeflow.new_contract_cmd import run_new_contract
+
     run_new_contract(schema=schema, table=table, layer=schema, project_root=root)
 
 
@@ -514,6 +535,7 @@ def new_model(name: str, layer: str | None, partition_by: str | None, project_ro
     if sys.stdin.isatty():
         try:
             import questionary
+
             layer = questionary.select(
                 "Layer?",
                 choices=MEDALLION_LAYERS,
@@ -521,7 +543,9 @@ def new_model(name: str, layer: str | None, partition_by: str | None, project_ro
             ).ask()
             if layer is None:
                 raise KeyboardInterrupt
-            p = questionary.text("Partition by column (optional, Enter to skip):", default=partition_by or "").ask()
+            p = questionary.text(
+                "Partition by column (optional, Enter to skip):", default=partition_by or ""
+            ).ask()
             partition_by = p.strip() or None if p is not None else partition_by
         except ImportError:
             if layer is None:

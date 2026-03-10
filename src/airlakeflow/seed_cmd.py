@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from airlakeflow.style import secho_ok, secho_info
+from airlakeflow.style import secho_info, secho_ok
 
 
 def run_seed(project_root: Path) -> None:

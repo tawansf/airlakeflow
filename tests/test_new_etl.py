@@ -49,10 +49,16 @@ def test_new_etl_partition_and_incremental(tmp_path):
     r = runner.invoke(
         cli,
         [
-            "new", "etl", "part_etl", "-G",
-            "--partition-by", "data_ref",
-            "--incremental-by", "updated_at",
-            "-r", str(proj),
+            "new",
+            "etl",
+            "part_etl",
+            "-G",
+            "--partition-by",
+            "data_ref",
+            "--incremental-by",
+            "updated_at",
+            "-r",
+            str(proj),
         ],
     )
     assert r.exit_code == 0

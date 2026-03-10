@@ -191,8 +191,14 @@ architecture: medallion
         if with_demo:
             try:
                 from airlakeflow.data_tests_cmd import create_alf_check_file, run_data_tests_cmd
+
                 run_data_tests_cmd(dest_path)
-                for schema, table in (("bronze", "user"), ("silver", "user"), ("bronze", "task"), ("silver", "task")):
+                for schema, table in (
+                    ("bronze", "user"),
+                    ("silver", "user"),
+                    ("bronze", "task"),
+                    ("silver", "task"),
+                ):
                     create_alf_check_file(dest_path, schema, table)
             except Exception:
                 pass
@@ -228,6 +234,7 @@ architecture: medallion
     if with_demo:
         try:
             from airlakeflow.seed_cmd import run_seed
+
             run_seed(dest_path)
         except Exception:
             pass

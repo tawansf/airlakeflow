@@ -37,11 +37,13 @@ def load_data_tests_config(project_root: Path) -> dict:
                 continue
             with open(yaml_path, encoding="utf-8") as f:
                 data = yaml.safe_load(f) or {}
-            tables.append({
-                "schema": layer,
-                "table": table_name,
-                "checks": data.get("checks", []),
-            })
+            tables.append(
+                {
+                    "schema": layer,
+                    "table": table_name,
+                    "checks": data.get("checks", []),
+                }
+            )
 
     return {"connection_id": connection_id, "tables": tables}
 
@@ -94,7 +96,9 @@ def run_data_tests(project_root: Path, conn_id: str | None = None) -> int:
                     cursor.execute(sql)
                     (n,) = cursor.fetchone()
                     if n and n > 0:
-                        failed.append(f"{full_name}: unique({columns}) failed ({n} duplicate groups)")
+                        failed.append(
+                            f"{full_name}: unique({columns}) failed ({n} duplicate groups)"
+                        )
     finally:
         cursor.close()
         conn.close()

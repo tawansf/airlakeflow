@@ -170,6 +170,19 @@ name/
 
 ---
 
+## Lint and format (Ruff + Black)
+
+The project uses **Ruff** for linting and **Black** for code style. After `pip install -e ".[dev]"`:
+
+```bash
+ruff check src tests      # lint (import order, unused imports, etc.); use --fix to auto-fix
+black src tests           # format code
+```
+
+Run both before committing so CI stays green. Ruff fixes many issues automatically (e.g. `ruff check src tests --fix`); Black has no fix mode, it just rewrites the files.
+
+---
+
 ## License
 
 [LICENSE](LICENSE).

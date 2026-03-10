@@ -1,7 +1,5 @@
 """Tests for alf docs command."""
 
-from pathlib import Path
-
 from click.testing import CliRunner
 
 from airlakeflow.cli import cli
@@ -31,6 +29,7 @@ def test_docs_json_format(tmp_path):
     assert r.exit_code == 0
     assert (tmp_path / "docs" / "catalog.json").exists()
     import json
+
     data = json.loads((tmp_path / "docs" / "catalog.json").read_text())
     assert isinstance(data, list)
 

@@ -1,7 +1,5 @@
 """Tests for alf add alf-checks command."""
 
-from pathlib import Path
-
 from click.testing import CliRunner
 
 from airlakeflow.cli import cli
@@ -43,7 +41,9 @@ def test_load_checks_from_layer_folders(tmp_path):
     (tmp_path / "config" / "checks").mkdir(parents=True)
     (tmp_path / "config" / "checks" / "bronze").mkdir()
     (tmp_path / "config" / "checks" / "silver").mkdir()
-    (tmp_path / "config" / "checks" / "generic.yaml").write_text("connection_id: postgres_datawarehouse\n")
+    (tmp_path / "config" / "checks" / "generic.yaml").write_text(
+        "connection_id: postgres_datawarehouse\n"
+    )
     (tmp_path / "config" / "checks" / "bronze" / "example_raw.yaml").write_text(
         "checks:\n  - type: not_null\n    columns: [col1]\n"
     )

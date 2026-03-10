@@ -77,7 +77,9 @@ def run_new_etl(
     render_to(domain_dir / "silver.py", "silver.py.j2")
     if with_gold:
         render_to(domain_dir / "gold.py", "gold.py.j2")
-    transformation_tpl = "transformation_snapshot.py.j2" if pattern == "snapshot" else "transformation.py.j2"
+    transformation_tpl = (
+        "transformation_snapshot.py.j2" if pattern == "snapshot" else "transformation.py.j2"
+    )
     render_to(domain_dir / "transformations" / f"{entity_snake}.py", transformation_tpl)
 
     if with_contracts:

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
-from airlakeflow.style import secho_ok, secho_info
+from airlakeflow.style import secho_info, secho_ok
 
 
 def create_alf_check_file(project_root: Path, schema: str, table: str) -> Path:
@@ -65,4 +65,6 @@ def run_data_tests_cmd(project_root: Path) -> None:
     out_file = dags_dir / "01_alf_checks.py"
     out_file.write_text(t.render(), encoding="utf-8")
     secho_ok(f"DAG written to {out_file}")
-    secho_info("  Add table checks under config/checks/bronze/, silver/, gold/ (one YAML per table).")
+    secho_info(
+        "  Add table checks under config/checks/bronze/, silver/, gold/ (one YAML per table)."
+    )
