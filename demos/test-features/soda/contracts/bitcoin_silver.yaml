@@ -1,0 +1,22 @@
+# Data contract - Silver Bitcoin (demo with mock data)
+dataset: postgres_datawarehouse/datawarehouse/silver/bitcoin
+
+checks:
+  - row_count:
+      name: Table is not empty
+      threshold:
+        must_be_greater_than: 0
+
+columns:
+  - name: currency
+    checks:
+      - invalid:
+          name: Currency must be USD
+          valid_values: ['usd']
+  - name: price
+    checks:
+      - aggregate:
+          name: Price is positive
+          function: min
+          threshold:
+            must_be_greater_than: 0

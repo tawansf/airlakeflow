@@ -5,6 +5,7 @@ import click
 
 from airlakeflow import __version__ as _pkg_version
 from airlakeflow.add_soda import run_add_soda
+from airlakeflow.data_tests_cmd import run_data_tests_cmd
 from airlakeflow.config import (
     get_architecture_from_config,
     get_runtime,
@@ -21,6 +22,7 @@ from airlakeflow.docker_cmd import (
     run_stop,
     run_up,
 )
+from airlakeflow.docs_cmd import run_docs
 from airlakeflow.doctor_cmd import run_doctor
 from airlakeflow.init_cmd import run_init
 from airlakeflow.local_cmd import run_local
@@ -42,6 +44,7 @@ from airlakeflow.migrations_cmd import (
 from airlakeflow.new_etl import run_new_etl
 from airlakeflow.new_migration import discover_dags, run_new_migration
 from airlakeflow.new_model_cmd import run_new_model
+from airlakeflow.seed_cmd import run_seed
 from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_warn
 from airlakeflow.upgrade_cmd import run_upgrade
 from airlakeflow.validate_cmd import run_validate
@@ -218,9 +221,9 @@ def list_etls(project_root: str):
 @click.option(
     "-s",
     "source",
-    type=click.Choice(["api", "file", "jdbc"]),
+    type=click.Choice(["api", "file", "jdbc", "kafka", "s3", "gcs"]),
     default="api",
-    help="Bronze ingestion type",
+    help="Bronze ingestion type (kafka/s3/gcs are stubs)",
 )
 @click.option(
     "-p",
@@ -235,6 +238,27 @@ def list_etls(project_root: str):
     is_flag=True,
     default=None,
     help="Silver with PySpark. Default from .airlakeflow.yaml",
+)
+@click.option(
+    "--pattern",
+    "pattern",
+    type=click.Choice(["default", "snapshot"], case_sensitive=False),
+    default="default",
+    help="Silver pattern: default or snapshot (SCD2 with valid_from/valid_to/is_current)",
+)
+@click.option(
+    "--partition-by",
+    "partition_by",
+    type=str,
+    default=None,
+    help="Partition key column (e.g. date_col) for bronze/silver; adds hint in generated code",
+)
+@click.option(
+    "--incremental-by",
+    "incremental_by",
+    type=str,
+    default=None,
+    help="Incremental column (e.g. updated_at) for incremental loads; adds filter hint",
 )
 @click.option(
     "-r",
@@ -252,6 +276,9 @@ def new_etl(
     source: str,
     no_spark: bool | None,
     use_spark_flag: bool | None,
+    pattern: str,
+    partition_by: str | None,
+    incremental_by: str | None,
     project_root: str,
 ):
     """Create a new ETL pipeline (Bronze -> Silver -> Gold) in the current project."""
@@ -273,6 +300,9 @@ def new_etl(
         with_gold=with_gold,
         source=source,
         use_spark=use_spark,
+        pattern=pattern.lower(),
+        partition_by=partition_by,
+        incremental_by=incremental_by,
         project_root=project_root,
     )
 
@@ -527,6 +557,62 @@ def doctor(project_root: str, quiet: bool):
     ok = run_doctor(Path(project_root), verbose=not quiet)
     if not ok:
         raise SystemExit(1)
+
+
+@_cli.command("seed")
+@click.option(
+    "-r",
+    "project_root",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=".",
+    help="Project root (default: current directory)",
+)
+def seed(project_root: str):
+    """Ensure data/seeds/ exists and generate DAG 00_seeds to load CSVs into bronze."""
+    project_root = str(resolve_project_root(project_root))
+    run_seed(Path(project_root))
+
+
+@_cli.command("docs")
+@click.option(
+    "-r",
+    "project_root",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=".",
+    help="Project root (default: current directory)",
+)
+@click.option(
+    "-o",
+    "output_dir",
+    type=str,
+    default=None,
+    help="Output directory (default: docs/)",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["html", "json"], case_sensitive=False),
+    default="html",
+    help="Catalog format: html or json",
+)
+def docs(project_root: str, output_dir: str | None, fmt: str):
+    """Generate static catalog from config/models and dags/sql/migrations (docs/catalog.html or .json)."""
+    project_root = str(resolve_project_root(project_root))
+    run_docs(Path(project_root), output_dir=output_dir, fmt=fmt)
+
+
+@_cli.command("data-tests")
+@click.option(
+    "-r",
+    "project_root",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=".",
+    help="Project root (default: current directory)",
+)
+def data_tests(project_root: str):
+    """Scaffold config/data_tests.yaml and generate DAG 01_data_tests to run data checks."""
+    project_root = str(resolve_project_root(project_root))
+    run_data_tests_cmd(Path(project_root))
 
 
 @_cli.command("status")

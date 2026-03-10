@@ -1,0 +1,2 @@
+# Migrations here are generated from config/models/ (alf migrations generate).
+# Only CREATE TABLE / CREATE VIEW. For database and schemas, use scripts/.

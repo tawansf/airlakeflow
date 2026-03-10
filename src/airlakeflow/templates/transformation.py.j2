@@ -3,6 +3,12 @@ import logging
 import os
 
 logger = logging.getLogger(__name__)
+{% if partition_by %}
+# Partition hint: --partition-by {{ partition_by }} (filter or write by partition)
+{% endif %}
+{% if incremental_by %}
+# Incremental hint: --incremental-by {{ incremental_by }} (read only new rows where {{ incremental_by }} > last_run)
+{% endif %}
 
 {% if use_spark %}
 from airflow.hooks.base import BaseHook

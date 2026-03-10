@@ -11,8 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 def bronze_ingestion_data_{{ entity_snake }}():
-    """Bronze ingestion for {{ table_name }}. Adjust the source --source (api/file/jdbc)."""
+    """Bronze ingestion for {{ table_name }}. Source: {{ source }}{% if partition_by %} | Partition: {{ partition_by }}{% endif %}{% if incremental_by %} | Incremental: {{ incremental_by }}{% endif %}."""
     pg_hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
+{% if partition_by %}
+    # Partition hint: --partition-by {{ partition_by }} (implement filter/partition in your logic)
+{% endif %}
+{% if incremental_by %}
+    # Incremental hint: --incremental-by {{ incremental_by }} (load only where {{ incremental_by }} > last_max)
+{% endif %}
 {% if source == "api" %}
     # Example: API. Adjust the URL and logic.
     import json
@@ -32,6 +38,21 @@ def bronze_ingestion_data_{{ entity_snake }}():
         payload_str = f.read()
     insert_sql = """INSERT INTO bronze.{{ entity_snake }}_raw (payload) VALUES (%s);"""
     pg_hook.run(insert_sql, parameters=[payload_str])
+{% elif source == "kafka" %}
+    # Kafka stub: consume from topic, write to bronze. Configure KAFKA_BOOTSTRAP_SERVERS and topic.
+    # from airflow.providers.apache.kafka.hooks.consume import KafkaConsumerHook
+    insert_sql = """INSERT INTO bronze.{{ entity_snake }}_raw (payload) VALUES ('{"_source": "kafka", "placeholder": true}');"""
+    pg_hook.run(insert_sql)
+{% elif source == "s3" %}
+    # S3 stub: read objects from bucket/prefix, write to bronze. Configure AWS_* or conn_id.
+    # from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+    insert_sql = """INSERT INTO bronze.{{ entity_snake }}_raw (payload) VALUES ('{"_source": "s3", "placeholder": true}');"""
+    pg_hook.run(insert_sql)
+{% elif source == "gcs" %}
+    # GCS stub: read objects from bucket/prefix, write to bronze. Configure GCP_* or conn_id.
+    # from airflow.providers.google.cloud.hooks.gcs import GCSHook
+    insert_sql = """INSERT INTO bronze.{{ entity_snake }}_raw (payload) VALUES ('{"_source": "gcs", "placeholder": true}');"""
+    pg_hook.run(insert_sql)
 {% else %}
     # JDBC: use Spark or another connector. Placeholder.
     insert_sql = """INSERT INTO bronze.{{ entity_snake }}_raw (payload) VALUES ('{}');"""

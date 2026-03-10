@@ -17,6 +17,9 @@ def run_new_etl(
     source: str,
     use_spark: bool,
     project_root: str,
+    pattern: str = "default",
+    partition_by: str | None = None,
+    incremental_by: str | None = None,
 ) -> None:
     project_root = Path(project_root).resolve()
     dags_dir = project_root / "dags"
@@ -38,6 +41,9 @@ def run_new_etl(
         "with_gold": with_gold,
         "source": source,
         "use_spark": use_spark,
+        "pattern": pattern,
+        "partition_by": partition_by,
+        "incremental_by": incremental_by,
     }
 
     # Prefer project-specific templates if present (templates/ in project root)
@@ -71,7 +77,8 @@ def run_new_etl(
     render_to(domain_dir / "silver.py", "silver.py.j2")
     if with_gold:
         render_to(domain_dir / "gold.py", "gold.py.j2")
-    render_to(domain_dir / "transformations" / f"{entity_snake}.py", "transformation.py.j2")
+    transformation_tpl = "transformation_snapshot.py.j2" if pattern == "snapshot" else "transformation.py.j2"
+    render_to(domain_dir / "transformations" / f"{entity_snake}.py", transformation_tpl)
 
     if with_contracts:
         render_to(

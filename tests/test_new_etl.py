@@ -40,3 +40,39 @@ def test_new_etl_creates_files(tmp_path):
     assert not (domain / "gold.py").exists()
     assert (domain / "transformations" / "teste_etl.py").exists()
     assert "teste_etl" in (domain / "pipeline.py").read_text()
+
+
+def test_new_etl_partition_and_incremental(tmp_path):
+    """alf new etl with --partition-by and --incremental-by adds hints in bronze and transformation."""
+    proj = _minimal_project(tmp_path)
+    runner = CliRunner()
+    r = runner.invoke(
+        cli,
+        [
+            "new", "etl", "part_etl", "-G",
+            "--partition-by", "data_ref",
+            "--incremental-by", "updated_at",
+            "-r", str(proj),
+        ],
+    )
+    assert r.exit_code == 0
+    bronze = proj / "dags" / "part_etl" / "bronze.py"
+    trans = proj / "dags" / "part_etl" / "transformations" / "part_etl.py"
+    assert "data_ref" in bronze.read_text() and "updated_at" in bronze.read_text()
+    assert "data_ref" in trans.read_text() and "updated_at" in trans.read_text()
+
+
+def test_new_etl_snapshot_pattern(tmp_path):
+    """alf new etl X --pattern snapshot creates transformation with SCD2 (valid_from, valid_to, is_current)."""
+    proj = _minimal_project(tmp_path)
+    runner = CliRunner()
+    r = runner.invoke(
+        cli,
+        ["new", "etl", "snapshot_etl", "-G", "--pattern", "snapshot", "-r", str(proj)],
+    )
+    assert r.exit_code == 0
+    trans = proj / "dags" / "snapshot_etl" / "transformations" / "snapshot_etl.py"
+    assert trans.exists()
+    content = trans.read_text()
+    assert "valid_from" in content and "valid_to" in content and "is_current" in content
+    assert "SCD2" in content
