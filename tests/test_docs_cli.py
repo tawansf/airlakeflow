@@ -19,7 +19,7 @@ def test_docs_creates_catalog_html(tmp_path):
     assert out.exists()
     content = out.read_text()
     assert "Catálogo" in content or "catalog" in content.lower()
-    assert "<table>" in content
+    assert "<table" in content
 
 
 def test_docs_json_format(tmp_path):

@@ -6,12 +6,17 @@ from pathlib import Path
 
 from airlakeflow.config import get_migration_driver, load_config
 from airlakeflow.migration_gen import generate_migrations
+from airlakeflow.model_loader import discover_models
 from airlakeflow.style import secho_fail, secho_info, secho_ok, secho_warn
 
 
 def run_gen(project_root: Path, driver: str | None) -> int:
     """Generate migration SQL files from models. Returns 0 on success, 1 on error."""
     root = Path(project_root).resolve()
+    models = discover_models(root)
+    if not models:
+        secho_warn("No models found in config/models/. Create one with 'alf new model NAME'.")
+        return 0
     cfg = load_config(root)
     driver_name = (driver or get_migration_driver(cfg)).strip().lower()
     try:
@@ -20,7 +25,7 @@ def run_gen(project_root: Path, driver: str | None) -> int:
         secho_fail(str(e))
         return 1
     if not created:
-        secho_warn("No models found in config/models/. Create one with 'alf new model NAME'.")
+        secho_info("All models already have migration files. Nothing to generate.")
         return 0
     secho_ok(f"Generated {len(created)} migration(s) with driver '{driver_name}'")
     for p in created:

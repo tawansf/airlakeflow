@@ -133,6 +133,7 @@ class ModelMeta(type):
                 fields.append((k, v.with_name(k)))
         cls._alf_fields = fields
         cls._alf_layer = getattr(cls, "_alf_layer", None)
+        cls._alf_partition_by = getattr(cls, "_alf_partition_by", None)
         cls._alf_table = getattr(cls, "__table__", None) or _to_snake(name)
         return cls
 
@@ -149,6 +150,7 @@ class Model(metaclass=ModelMeta):
 
     __table__: str = ""
     _alf_layer: str | None = None
+    _alf_partition_by: str | None = None  # column name for PARTITION BY RANGE (e.g. data_registro)
     _alf_fields: list[tuple[str, FieldDesc]]
     _alf_table: str
 
@@ -170,13 +172,15 @@ class Model(metaclass=ModelMeta):
         return list(cls._alf_fields)
 
 
-def layer(schema: str):
-    """Decorator to assign a layer (bronze/silver/gold) to a model."""
+def layer(schema: str, partition_by: str | None = None):
+    """Decorator to assign a layer (bronze/silver/gold) and optional partition key to a model."""
 
     def deco(model_class: type) -> type:
         if not issubclass(model_class, Model):
             raise TypeError("@layer must be used on a Model subclass")
         model_class._alf_layer = schema
+        if partition_by is not None:
+            model_class._alf_partition_by = partition_by
         return model_class
 
     return deco

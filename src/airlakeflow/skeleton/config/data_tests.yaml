@@ -1,4 +1,0 @@
-# Data tests (run by DAG 01_data_tests). Generate DAG with: alf data-tests
-# Checks: not_null (columns), row_count (min/max), unique (columns)
-connection_id: postgres_datawarehouse
-tables: []

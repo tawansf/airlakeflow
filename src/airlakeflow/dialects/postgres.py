@@ -53,9 +53,14 @@ class PostgresDialect(BaseDialect):
         schema = model.get_schema()
         table = model.get_table_name()
         full = f"{schema}.{table}"
+        partition_by = getattr(model, "_alf_partition_by", None)
         lines = [f"CREATE TABLE IF NOT EXISTS {full} ("]
+        pks = [name for name, f in model.get_fields() if f.primary_key]
+        if partition_by and partition_by not in pks:
+            pks.append(partition_by)
+        # Inline PRIMARY KEY only when single column; otherwise use composite at end (required for partitioned tables).
+        use_composite_pk = len(pks) > 1
         parts = []
-        pks = []
         for name, field in model.get_fields():
             typ = self.emit_type(field)
             not_null = " NOT NULL" if not field.nullable else ""
@@ -64,20 +69,26 @@ class PostgresDialect(BaseDialect):
             ref_sql = self.emit_references(field)
             if ref_sql:
                 ref_clause = f" {ref_sql}"
-            pk_suffix = " PRIMARY KEY" if field.primary_key else ""
-            if field.primary_key:
-                pks.append(name)
+            pk_suffix = " PRIMARY KEY" if field.primary_key and not use_composite_pk else ""
             parts.append(f"    {name} {typ}{not_null}{default}{ref_clause}{pk_suffix}")
-        if len(pks) > 1:
+        if use_composite_pk:
             parts.append(f"    PRIMARY KEY ({', '.join(pks)})")
         lines.append(",\n".join(parts))
-        lines.append(");")
+        if partition_by:
+            lines.append(f") PARTITION BY RANGE ({partition_by});")
+            default_partition = f"{table}_default"
+            lines.append(
+                f"\nCREATE TABLE IF NOT EXISTS {schema}.{default_partition} "
+                f"PARTITION OF {full} FOR VALUES FROM (MINVALUE) TO (MAXVALUE);"
+            )
+        else:
+            lines.append(");")
 
-        # Indexes on common columns
-        for name, _field in model.get_fields():
-            if name in ("updated_at", "created_at", "date", "data_ingestao", "ingestion_date"):
-                idx = f"idx_{schema}_{table}_{name}".replace(".", "_")
-                lines.append(f"\nCREATE INDEX IF NOT EXISTS {idx} ON {full}({name});")
+        if not partition_by:
+            for name, _field in model.get_fields():
+                if name in ("updated_at", "created_at", "date", "data_ingestao", "ingestion_date"):
+                    idx = f"idx_{schema}_{table}_{name}".replace(".", "_")
+                    lines.append(f"\nCREATE INDEX IF NOT EXISTS {idx} ON {full}({name});")
         return "\n".join(lines)
 
 

@@ -1,4 +1,4 @@
-"""Execute data tests from config/data_tests.yaml (not_null, row_count, unique)."""
+"""Execute ALF-Checks from config/checks/ (generic.yaml + layer folders with one YAML per table)."""
 
 from __future__ import annotations
 
@@ -6,18 +6,44 @@ from pathlib import Path
 
 import yaml
 
+KNOWN_LAYERS = ("bronze", "silver", "gold")
+
 
 def load_data_tests_config(project_root: Path) -> dict:
-    """Load config/data_tests.yaml; return dict with connection_id and tables."""
-    path = Path(project_root).resolve() / "config" / "data_tests.yaml"
-    if not path.exists():
-        return {"connection_id": "postgres_datawarehouse", "tables": []}
-    with open(path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    return {
-        "connection_id": data.get("connection_id", "postgres_datawarehouse"),
-        "tables": data.get("tables", []),
-    }
+    """Load config/checks/: generic.yaml for connection_id, layer folders for tables (one YAML per table).
+    Returns dict with connection_id and tables (each: schema, table, checks).
+    """
+    root = Path(project_root).resolve()
+    checks_dir = root / "config" / "checks"
+    connection_id = "postgres_datawarehouse"
+    tables: list[dict] = []
+
+    generic_path = checks_dir / "generic.yaml"
+    if generic_path.exists():
+        with open(generic_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        connection_id = data.get("connection_id", connection_id)
+
+    if not checks_dir.exists():
+        return {"connection_id": connection_id, "tables": tables}
+
+    for layer in KNOWN_LAYERS:
+        layer_dir = checks_dir / layer
+        if not layer_dir.is_dir():
+            continue
+        for yaml_path in sorted(layer_dir.glob("*.yaml")):
+            table_name = yaml_path.stem
+            if not table_name or yaml_path.name.startswith("."):
+                continue
+            with open(yaml_path, encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+            tables.append({
+                "schema": layer,
+                "table": table_name,
+                "checks": data.get("checks", []),
+            })
+
+    return {"connection_id": connection_id, "tables": tables}
 
 
 def run_data_tests(project_root: Path, conn_id: str | None = None) -> int:

@@ -1,44 +1,58 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AirLakeFlow – Catálogo</title>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 1rem 2rem; }
-    h1 { font-size: 1.25rem; }
-    table { border-collapse: collapse; margin-top: 0.5rem; }
-    th, td { border: 1px solid #ccc; padding: 0.35rem 0.75rem; text-align: left; }
-    th { background: #f5f5f5; }
-    .layer-bronze { color: #8b4513; }
-    .layer-silver { color: #708090; }
-    .layer-gold { color: #b8860b; }
-  </style>
+  <title>AirLakeFlow – Catalog</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Catálogo – {{ catalog|length }} entidade(s)</h1>
-  <p>Projeto: <code>{{ project_root }}</code></p>
-  <table>
-    <thead>
-      <tr>
-        <th>Schema</th>
-        <th>Tabela</th>
-        <th>Camada</th>
-        <th>Origem</th>
-        <th>Arquivo / módulo</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for e in catalog %}
-      <tr>
-        <td>{{ e.schema }}</td>
-        <td>{{ e.table }}</td>
-        <td class="layer-{{ e.layer }}">{{ e.layer }}</td>
-        <td>{{ e.source }}</td>
-        <td><code>{{ e.file }}</code></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="max-w-4xl mx-auto px-6 py-10">
+    <header class="mb-8">
+      <h1 class="text-2xl font-semibold text-slate-900">Catalog</h1>
+      <p class="mt-1 text-slate-600">
+        <span class="font-medium">{{ catalog|length }}</span> entries
+      </p>
+      <p class="mt-2 text-sm text-slate-500 font-mono truncate" title="{{ project_root }}">Project: {{ project_root }}</p>
+    </header>
+
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200">
+          <thead class="bg-slate-100">
+            <tr>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Schema</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Table</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Layer</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">Source</th>
+              <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-slate-600 uppercase tracking-wider">File / module</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            {% for e in catalog %}
+            <tr class="hover:bg-slate-50">
+              <td class="px-4 py-3 text-sm text-slate-700">{{ e.schema }}</td>
+              <td class="px-4 py-3 text-sm font-medium text-slate-900">{{ e.table }}</td>
+              <td class="px-4 py-3">
+                <span class="inline-flex text-xs font-medium px-2 py-0.5 rounded
+                  {% if e.layer == 'bronze' %}bg-amber-100 text-amber-800
+                  {% elif e.layer == 'silver' %}bg-slate-200 text-slate-700
+                  {% elif e.layer == 'gold' %}bg-yellow-100 text-yellow-800
+                  {% else %}bg-slate-100 text-slate-600{% endif %}">
+                  {{ e.layer }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-sm text-slate-600">{{ e.source }}</td>
+              <td class="px-4 py-3 text-sm font-mono text-slate-500">{{ e.file }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if not catalog %}
+      <p class="px-4 py-8 text-center text-slate-500 text-sm">No entries in catalog.</p>
+      {% endif %}
+    </div>
+  </div>
 </body>
 </html>

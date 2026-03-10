@@ -45,22 +45,26 @@ from airlakeflow.new_etl import run_new_etl
 from airlakeflow.new_migration import discover_dags, run_new_migration
 from airlakeflow.new_model_cmd import run_new_model
 from airlakeflow.seed_cmd import run_seed
-from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_warn
+from airlakeflow.style import SYM_LIST, print_banner, secho_fail, secho_ok, secho_warn
 from airlakeflow.upgrade_cmd import run_upgrade
 from airlakeflow.validate_cmd import run_validate
 
-# Commands that operate the Docker/Compose stack (shown in a separate block in help)
+# Command groups for help sections (same order as in alf --help)
 DOCKER_COMMANDS = frozenset({"down", "exec", "logs", "ps", "restart", "run", "status", "stop"})
+QUALITY_COMMANDS = frozenset({"add"})
+FRAMEWORK_PROJETO = frozenset({"init", "upgrade", "validate", "doctor", "help", "version"})
+FRAMEWORK_RECURSOS = frozenset({"new", "list", "migrations", "seed", "docs"})
+HIDDEN_ALIASES = frozenset({"m"})  # migrations alias; show only "migrations"
 
 
 class AlfGroup(click.Group):
-    """Group that lists Docker-related commands in a separate section in help."""
+    """Group that lists commands in sections: Project, Resources, Quality, Docker (stack)."""
 
     def format_commands(self, ctx, formatter):
         commands = sorted(self.list_commands(ctx))
-        # Hide aliases from help (e.g. "m"); show only full names like "migrations"
-        HIDDEN_ALIASES = frozenset({"m"})
-        rest = [c for c in commands if c not in DOCKER_COMMANDS and c not in HIDDEN_ALIASES]
+        projeto = [c for c in commands if c in FRAMEWORK_PROJETO]
+        recursos = [c for c in commands if c in FRAMEWORK_RECURSOS]
+        quality = [c for c in commands if c in QUALITY_COMMANDS]
         docker = [c for c in commands if c in DOCKER_COMMANDS]
         max_len = max((len(name) for name in commands), default=0)
         limit = formatter.width - 6 - max_len if formatter.width else 72
@@ -71,31 +75,24 @@ class AlfGroup(click.Group):
             with formatter.section(section_title):
                 formatter.write_dl(rows)
 
-        rest_rows = []
-        for name in rest:
-            cmd = self.get_command(ctx, name)
-            if cmd is None or getattr(cmd, "hidden", False):
-                continue
-            help_str = (
-                cmd.get_short_help_str(limit)
-                if hasattr(cmd, "get_short_help_str")
-                else (cmd.help or "")
-            )
-            rest_rows.append((name, help_str))
-        write_block(rest_rows, "Commands")
+        def rows_for(names):
+            out = []
+            for name in names:
+                cmd = self.get_command(ctx, name)
+                if cmd is None or getattr(cmd, "hidden", False):
+                    continue
+                help_str = (
+                    cmd.get_short_help_str(limit)
+                    if hasattr(cmd, "get_short_help_str")
+                    else (cmd.help or "")
+                )
+                out.append((name, help_str))
+            return out
 
-        docker_rows = []
-        for name in docker:
-            cmd = self.get_command(ctx, name)
-            if cmd is None or getattr(cmd, "hidden", False):
-                continue
-            help_str = (
-                cmd.get_short_help_str(limit)
-                if hasattr(cmd, "get_short_help_str")
-                else (cmd.help or "")
-            )
-            docker_rows.append((name, help_str))
-        write_block(docker_rows, "Docker (stack)")
+        write_block(rows_for(projeto), "Project")
+        write_block(rows_for(recursos), "Resources")
+        write_block(rows_for(quality), "Quality")
+        write_block(rows_for(docker), "Docker (stack)")
 
 
 def _get_version() -> str:
@@ -152,7 +149,7 @@ def _show_version_v(ctx: click.Context):
 
 @_cli.group()
 def new():
-    """Create new resource (ETL, Migration, Contract, Layer)."""
+    """Create new resource (ETL, Migration, Contract, Model)."""
     pass
 
 
@@ -162,14 +159,18 @@ def list_group():
     pass
 
 
+# Only Medallion (3 layers) for now; other architectures later.
+MEDALLION_LAYERS = ["bronze", "silver", "gold"]
+
+
 def _architecture_layers(project_root: str = ".") -> list[str]:
-    """Return layer names from project architecture (for CLI choices). Falls back to medallion layers."""
+    """Return layer names (Medallion: bronze, silver, gold)."""
     try:
         root = Path(resolve_project_root(project_root))
         cfg = load_config(root)
         return get_architecture_from_config(cfg).layers
     except Exception:
-        return ["bronze", "silver", "gold"]
+        return list(MEDALLION_LAYERS)
 
 
 def _architecture_default_layer(project_root: str = ".") -> str:
@@ -208,22 +209,22 @@ def list_etls(project_root: str):
 
 @new.command("etl")
 @click.argument("name", type=str)
-@click.option("-t", "table_name", default=None, help="Table name (default: equal to NAME)")
+@click.option("-t", "table_name", default=None, help="Table name. Omit to be asked.")
 @click.option(
     "-c",
     "with_contracts",
     is_flag=True,
     default=False,
-    help="Generate Soda contracts (Bronze + Silver)",
+    help="Generate Soda contracts. Omit to be asked.",
 )
-@click.option("-g", "with_gold", is_flag=True, default=True, help="Include Gold layer")
-@click.option("-G", "no_gold", is_flag=True, default=False, help="Exclude Gold layer")
+@click.option("-g", "with_gold", is_flag=True, default=True, help="Include Gold layer. Omit to be asked.")
+@click.option("-G", "no_gold", is_flag=True, default=False, help="Exclude Gold")
 @click.option(
     "-s",
     "source",
     type=click.Choice(["api", "file", "jdbc", "kafka", "s3", "gcs"]),
     default="api",
-    help="Bronze ingestion type (kafka/s3/gcs are stubs)",
+    help="Bronze source. Omit to be asked.",
 )
 @click.option(
     "-p",
@@ -244,21 +245,21 @@ def list_etls(project_root: str):
     "pattern",
     type=click.Choice(["default", "snapshot"], case_sensitive=False),
     default="default",
-    help="Silver pattern: default or snapshot (SCD2 with valid_from/valid_to/is_current)",
+    help="Silver pattern (default or snapshot). Omit to be asked.",
 )
 @click.option(
     "--partition-by",
     "partition_by",
     type=str,
     default=None,
-    help="Partition key column (e.g. date_col) for bronze/silver; adds hint in generated code",
+    help="Partition column. Omit to be asked.",
 )
 @click.option(
     "--incremental-by",
     "incremental_by",
     type=str,
     default=None,
-    help="Incremental column (e.g. updated_at) for incremental loads; adds filter hint",
+    help="Incremental column. Omit to be asked.",
 )
 @click.option(
     "-r",
@@ -285,6 +286,46 @@ def new_etl(
     if no_gold:
         with_gold = False
     project_root = str(resolve_project_root(project_root))
+    if sys.stdin.isatty():
+        try:
+            import questionary
+            table = table_name or (questionary.text("Table name?", default=name).ask() or name)
+            with_gold = questionary.select(
+                "Include Gold layer?",
+                choices=[questionary.Choice("Yes", True), questionary.Choice("No", False)],
+                default=with_gold,
+            ).ask()
+            if with_gold is None:
+                raise KeyboardInterrupt
+            with_contracts = questionary.select(
+                "Include Soda contracts?",
+                choices=[questionary.Choice("No", False), questionary.Choice("Yes", True)],
+                default=with_contracts,
+            ).ask()
+            if with_contracts is None:
+                raise KeyboardInterrupt
+            source = questionary.select(
+                "Bronze source type",
+                choices=["api", "file", "jdbc", "kafka", "s3", "gcs"],
+                default=source,
+            ).ask()
+            if source is None:
+                raise KeyboardInterrupt
+            pattern = questionary.select(
+                "Pattern Silver",
+                choices=[questionary.Choice("default", "default"), questionary.Choice("snapshot (SCD2)", "snapshot")],
+                default=pattern,
+            ).ask() or "default"
+            if pattern is None:
+                raise KeyboardInterrupt
+            p = questionary.text("Partition by column (optional, Enter to skip):", default=partition_by or "").ask()
+            partition_by = p.strip() or None if p is not None else partition_by
+            inc = questionary.text("Incremental by column (optional, Enter to skip):", default=incremental_by or "").ask()
+            incremental_by = inc.strip() or None if inc is not None else incremental_by
+        except ImportError:
+            table = table_name or name
+    else:
+        table = table_name or name
     if use_spark_flag:
         use_spark = True
     elif no_spark:
@@ -292,7 +333,6 @@ def new_etl(
     else:
         cfg = load_config(Path(project_root))
         use_spark = cfg.get("silver_backend", "pandas") == "pyspark"
-    table = table_name or name
     run_new_etl(
         name=name,
         table_name=table,
@@ -310,14 +350,14 @@ def new_etl(
 @new.command("migration")
 @click.argument("name", type=str)
 @click.option(
-    "-d", "dag", default=None, help="DAG name (directory in dags/). If omitted, list to choose."
+    "-d", "dag", default=None, help="DAG name. Omit to be asked interactively."
 )
 @click.option(
     "-l",
     "layer",
-    type=click.Choice(_architecture_layers()),
+    type=click.Choice(MEDALLION_LAYERS),
     default=None,
-    help="Layer (from project architecture). If omitted, ask.",
+    help="Layer (bronze/silver/gold). Omit to be asked interactively.",
 )
 @click.option(
     "-r",
@@ -327,7 +367,7 @@ def new_etl(
     help="Project root (default: current directory)",
 )
 def new_migration(name: str, dag: str | None, layer: str | None, project_root: str):
-    """Create a migration for an existing DAG. Choose the DAG and the layer (or use -d and -l)."""
+    """Create a migration for an existing DAG. DAG and layer are asked interactively if omitted."""
     project_root = str(resolve_project_root(project_root))
     root = Path(project_root).resolve()
     dags = discover_dags(root)
@@ -335,24 +375,47 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
         secho_fail("No DAGs found in dags/. Create one with 'alf new etl NAME'.")
         raise SystemExit(1)
     if dag is None:
-        dag = click.prompt("Choose the DAG", type=click.Choice(dags))
+        if sys.stdin.isatty():
+            try:
+                import questionary
+                dag = questionary.select("Which DAG?", choices=dags).ask()
+                if dag is None:
+                    raise KeyboardInterrupt
+            except ImportError:
+                dag = click.prompt("Choose the DAG", type=click.Choice(dags))
+        else:
+            dag = click.prompt("Choose the DAG", type=click.Choice(dags))
     if layer is None:
-        layer = click.prompt("Layer", type=click.Choice(_architecture_layers(project_root or ".")))
+        if sys.stdin.isatty():
+            try:
+                import questionary
+                layer = questionary.select("Layer?", choices=MEDALLION_LAYERS).ask()
+                if layer is None:
+                    raise KeyboardInterrupt
+            except ImportError:
+                layer = click.prompt("Layer", type=click.Choice(MEDALLION_LAYERS))
+        else:
+            layer = click.prompt("Layer", type=click.Choice(MEDALLION_LAYERS))
     run_new_migration(
         name=name, dag=dag, layer=layer.lower() if layer else "bronze", project_root=project_root
     )
 
 
+def _tables_by_schema(project_root: Path) -> dict[str, list[str]]:
+    """Return {schema: [table1, table2, ...]} from config/models."""
+    from airlakeflow.model_loader import discover_models
+    out: dict[str, list[str]] = {}
+    for m in discover_models(Path(project_root)):
+        s, t = m.get_schema(), m.get_table_name()
+        out.setdefault(s, []).append(t)
+    for s in out:
+        out[s] = sorted(set(out[s]))
+    return out
+
+
 @new.command("contract")
-@click.argument("schema", type=str)
-@click.argument("table", type=str)
-@click.option(
-    "-l",
-    "layer",
-    type=click.Choice(_architecture_layers()),
-    default=None,
-    help="Layer for the contract",
-)
+@click.argument("schema", type=str, required=False, default=None)
+@click.argument("table", type=str, required=False, default=None)
 @click.option(
     "-r",
     "project_root",
@@ -360,31 +423,71 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
     default=".",
     help="Project root",
 )
-def new_contract(schema: str, table: str, layer: str | None, project_root: str):
-    """Create a new Soda contract for an existing table in the given layer."""
+def new_contract(schema: str | None, table: str | None, project_root: str):
+    """Create a new contract (Soda or ALF-Checks). Schema = layer. Type, schema and table are asked if omitted."""
     project_root = str(resolve_project_root(project_root))
-    if layer is None:
-        layer = _architecture_default_layer(project_root)
+    root = Path(project_root)
+    contract_type: str | None = None  # "soda" | "alf_checks"
+    if sys.stdin.isatty() and (schema is None or table is None):
+        try:
+            import questionary
+            schema = schema or questionary.select(
+                "Schema (layer)?",
+                choices=MEDALLION_LAYERS,
+                default="bronze",
+            ).ask()
+            if schema is None:
+                raise KeyboardInterrupt
+            tables_by_schema = _tables_by_schema(root)
+            tables = tables_by_schema.get(schema, [])
+            if tables:
+                table = table or questionary.select("Table?", choices=tables).ask()
+            else:
+                table = table or questionary.text("Table name?").ask()
+            if not table:
+                raise click.UsageError("Table is required.")
+            contract_type = questionary.select(
+                "Contract type?",
+                choices=[
+                    questionary.Choice("Soda (soda/contracts/)", "soda"),
+                    questionary.Choice("ALF-Checks (config/checks/)", "alf_checks"),
+                ],
+            ).ask()
+            if contract_type is None:
+                raise KeyboardInterrupt
+        except ImportError:
+            if schema is None:
+                schema = "bronze"
+            table = table or click.prompt("Table name?")
+            contract_type = "soda"
+    if not schema or not table:
+        raise click.UsageError(
+            "SCHEMA and TABLE are required (or use interactive mode). "
+            "Example: alf new contract bronze my_table"
+        )
+    if contract_type is None and sys.stdin.isatty():
+        try:
+            import questionary
+            contract_type = questionary.select(
+                "Contract type?",
+                choices=[
+                    questionary.Choice("Soda (soda/contracts/)", "soda"),
+                    questionary.Choice("ALF-Checks (config/checks/)", "alf_checks"),
+                ],
+            ).ask()
+            if contract_type is None:
+                raise KeyboardInterrupt
+        except ImportError:
+            contract_type = "soda"
+    if contract_type is None:
+        contract_type = "soda"
+    if contract_type == "alf_checks":
+        from airlakeflow.data_tests_cmd import create_alf_check_file
+        path = create_alf_check_file(root, schema, table)
+        secho_ok(f"ALF-Check created: {path}")
+        return
     from airlakeflow.new_contract_cmd import run_new_contract
-
-    run_new_contract(schema=schema, table=table, layer=layer, project_root=Path(project_root))
-
-
-@new.command("layer")
-@click.argument("name", type=str)
-@click.option(
-    "-r",
-    "project_root",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=".",
-    help="Project root",
-)
-def new_layer(name: str, project_root: str):
-    """Create a new layer (minimal DAG folder with pipeline and optional bronze/silver/gold stubs)."""
-    project_root = str(resolve_project_root(project_root))
-    from airlakeflow.new_layer_cmd import run_new_layer
-
-    run_new_layer(name=name, project_root=Path(project_root))
+    run_new_contract(schema=schema, table=table, layer=schema, project_root=root)
 
 
 @new.command("model")
@@ -392,15 +495,40 @@ def new_layer(name: str, project_root: str):
 @click.option(
     "-l",
     "layer",
-    type=click.Choice(_architecture_layers(), case_sensitive=False),
-    default=_architecture_default_layer(),
-    help="Layer (from project architecture). Default from architecture.",
+    type=click.Choice(MEDALLION_LAYERS, case_sensitive=False),
+    default=None,
+    help="Layer (bronze/silver/gold). Omit to be asked interactively.",
+)
+@click.option(
+    "--partition-by",
+    "partition_by",
+    type=str,
+    default=None,
+    help="Partition key column. Omit to be asked interactively.",
 )
 @_project_root_option()
-def new_model(name: str, layer: str, project_root: str):
+def new_model(name: str, layer: str | None, partition_by: str | None, project_root: str):
     """Create a new model in config/models/ and generate its migration (dags/sql/migrations/)."""
-    root = Path(resolve_project_root(project_root))
-    run_new_model(name=name, layer_name=layer, project_root=root)
+    project_root = str(resolve_project_root(project_root))
+    root = Path(project_root)
+    if sys.stdin.isatty():
+        try:
+            import questionary
+            layer = questionary.select(
+                "Layer?",
+                choices=MEDALLION_LAYERS,
+                default=layer or _architecture_default_layer(project_root),
+            ).ask()
+            if layer is None:
+                raise KeyboardInterrupt
+            p = questionary.text("Partition by column (optional, Enter to skip):", default=partition_by or "").ask()
+            partition_by = p.strip() or None if p is not None else partition_by
+        except ImportError:
+            if layer is None:
+                layer = _architecture_default_layer(project_root)
+    elif layer is None:
+        layer = _architecture_default_layer(project_root)
+    run_new_model(name=name, layer_name=layer, project_root=root, partition_by=partition_by)
 
 
 @_cli.group()
@@ -515,6 +643,20 @@ def add_greatxp(etl: str | None, all_etls: bool, project_root: str):
     secho_warn("alf add greatxp: in development.")
 
 
+@add.command("alf-checks")
+@click.option(
+    "-r",
+    "project_root",
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    default=".",
+    help="Project root (default: current directory)",
+)
+def add_alf_checks(project_root: str):
+    """Add ALF-Checks (native data checks): config/checks/ and DAG 01_alf_checks. Alternative to Soda."""
+    project_root = str(resolve_project_root(project_root))
+    run_data_tests_cmd(Path(project_root))
+
+
 @_cli.command("validate")
 @click.option(
     "-r",
@@ -599,20 +741,6 @@ def docs(project_root: str, output_dir: str | None, fmt: str):
     """Generate static catalog from config/models and dags/sql/migrations (docs/catalog.html or .json)."""
     project_root = str(resolve_project_root(project_root))
     run_docs(Path(project_root), output_dir=output_dir, fmt=fmt)
-
-
-@_cli.command("data-tests")
-@click.option(
-    "-r",
-    "project_root",
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    default=".",
-    help="Project root (default: current directory)",
-)
-def data_tests(project_root: str):
-    """Scaffold config/data_tests.yaml and generate DAG 01_data_tests to run data checks."""
-    project_root = str(resolve_project_root(project_root))
-    run_data_tests_cmd(Path(project_root))
 
 
 @_cli.command("status")
@@ -720,14 +848,14 @@ def ps(project_root: str):
     is_flag=True,
     default=None,
     flag_value=True,
-    help="Include DAG demo (crypto). If omitted, init will ask interactively.",
+    help="Include demo (User+Tasks pipeline). Default: yes.",
 )
 @click.option(
     "-D",
     "no_demo",
     is_flag=True,
     default=None,
-    help="Exclude DAG demo. If omitted, init will ask interactively.",
+    help="Exclude demo (minimal project, no demo DAGs).",
 )
 @click.option(
     "-m",
@@ -909,26 +1037,9 @@ def init(
             with_monitoring = (
                 click.confirm("Add Soda (data quality)?", default=False) if interactive else False
             )
-    # 5. Demo DAGs (crypto)
+    # Demo is always included unless --no-demo (no question)
     if demo is None:
-        if interactive and _has_select:
-            choice = questionary.select(
-                "Include demo DAGs (crypto)?",
-                choices=[
-                    # Yes first = default (was default=True)
-                    questionary.Choice("Yes", value=True),
-                    questionary.Choice("No", value=False),
-                ],
-                pointer="→",
-                style=_select_style,
-            ).ask()
-            if choice is None:
-                raise KeyboardInterrupt
-            demo = choice
-        else:
-            demo = (
-                click.confirm("Include demo DAGs (crypto)?", default=True) if interactive else True
-            )
+        demo = True
     run_init(
         dest=project_name,
         with_demo=demo,

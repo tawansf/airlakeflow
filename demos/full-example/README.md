@@ -145,8 +145,6 @@ pip install -e .
 
 * **`alf new contract SCHEMA TABLE [options]`** — Generate a Soda contract for an existing table (in development). For now, use `alf new etl NAME --contracts` to generate contracts with the ETL.
 
-* **`alf new layer NAME [options]`** — Generate a new layer or resource (in development).
-
 * **`alf init [DEST]`** — Create a new project by copying the framework structure into `DEST` (default: current dir).
   * `--demo` / `--no-demo`: include crypto demo DAG. Default: yes.
   * `--with-monitoring` / `--no-monitoring`: include monitoring schema and Soda report. Default: yes.

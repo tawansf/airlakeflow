@@ -33,6 +33,40 @@ def run_silver_{{ entity_snake }}_transformation(jdbc_url: str, db_properties: d
 {% else %}
 def run_silver_{{ entity_snake }}_transformation() -> None:
     from airflow.providers.postgres.hooks.postgres import PostgresHook
-    # TODO: read bronze.{{ entity_snake }}_raw, transform (pandas or SQL), write to silver.{{ entity_snake }}
-    logger.info("Silver transformation {{ entity_snake }} (Python) - implement logic.")
+    import pandas as pd
+    from sqlalchemy import create_engine
+{% if incremental_by %}
+    from airflow.models import Variable
+    VAR_KEY = "incremental_{{ entity_snake }}_{{ incremental_by }}"
+    last_max = Variable.get(VAR_KEY, default_var="1970-01-01 00:00:00")
+{% endif %}
+    hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
+    uri = hook.get_uri()
+    if uri.startswith("postgresql://"):
+        uri = "postgresql+psycopg2://" + uri[len("postgresql://"):]
+    engine = create_engine(uri)
+    try:
+{% if incremental_by %}
+        df = pd.read_sql(
+            'SELECT * FROM bronze."{{ entity_snake }}_raw" WHERE "{{ incremental_by }}" > %(last_max)s',
+            engine,
+            params={"last_max": last_max},
+        )
+{% else %}
+        df = pd.read_sql('SELECT * FROM bronze."{{ entity_snake }}_raw"', engine)
+{% endif %}
+        if df.empty:
+            logger.warning("Bronze empty or no new rows; nothing to transform.")
+            return
+        # TODO: transform df (clean, enrich), then write to silver
+        # df.to_sql("{{ entity_snake }}", engine, schema="silver", if_exists="append", index=False, method="multi")
+        logger.info("Silver transformation {{ entity_snake }} (Python) - %s row(s) read. Implement to_sql to silver.", len(df))
+{% if incremental_by %}
+        if not df.empty and "{{ incremental_by }}" in df.columns:
+            new_max = df["{{ incremental_by }}"].max()
+            Variable.set(VAR_KEY, str(new_max))
+            logger.info("Updated %s to %s", VAR_KEY, new_max)
+{% endif %}
+    finally:
+        engine.dispose()
 {% endif %}

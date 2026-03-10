@@ -59,3 +59,19 @@ def test_new_model_generates_migration(tmp_path):
     assert len(migrations) == 1
     assert "setup_silver_item" in migrations[0].name
     assert "CREATE TABLE" in migrations[0].read_text()
+
+
+def test_new_model_partition_by(tmp_path):
+    """alf new model with --partition-by creates model with partition key and migration with PARTITION BY RANGE."""
+    proj = _minimal_project(tmp_path)
+    run_new_model(name="vendas", layer_name="silver", project_root=proj, partition_by="data_registro")
+    model_file = proj / "config" / "models" / "vendas.py"
+    assert model_file.exists()
+    content = model_file.read_text()
+    assert 'partition_by="data_registro"' in content
+    assert "data_registro = Field.date()" in content
+    migrations = list((proj / "dags" / "sql" / "migrations").glob("V*.sql"))
+    assert len(migrations) >= 1
+    migration_content = migrations[0].read_text()
+    assert "PARTITION BY RANGE (data_registro)" in migration_content
+    assert "FOR VALUES FROM (MINVALUE) TO (MAXVALUE)" in migration_content

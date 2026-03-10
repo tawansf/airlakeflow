@@ -29,8 +29,8 @@ def test_init_creates_project_with_config(tmp_path, monkeypatch):
     content = (dest / ".airlakeflow.yaml").read_text()
     assert "silver_backend: pandas" in content
     assert "soda_data_source" in content or "contracts_dir" in content  # commented options
-    # No demo: crypto should be removed (skeleton has it, init removes when -D)
-    assert not (dest / "dags" / "crypto").exists()
+    # No demo: demo DAG and contracts removed (skeleton has demo, init removes when -D)
+    assert not (dest / "dags" / "demo").exists()
 
 
 def test_init_non_interactive_defaults(tmp_path, monkeypatch):

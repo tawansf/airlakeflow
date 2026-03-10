@@ -55,19 +55,25 @@ bandit -r src -q -l       # security lint (fail on High only)
 ## Quick start
 
 ```bash
-# 1. Create a new project
+# 1. Create a new project (demo User+Task included by default; use -D for minimal)
 alf init my-project
 cd my-project
 
-# 2. Create an ETL pipeline
+# 2. Start the stack and run DAGs in order: 00_setup_database_migrations → 00_seeds → demo_pipeline
+alf run
+# Airflow UI: http://localhost:8080 — run setup, then seeds, then demo_pipeline
+
+# 3. Or create your own ETL and models
 alf new etl sales
+alf new model product --layer silver
+alf new contract silver product   # interactive: choose Soda or ALF-Checks
 alf new migration setup_bronze_sales -d sales -l bronze
-# (edit dags/sql/migrations/ and logic in dags/sales/)
 
-# 3. Optional: add quality with Soda
+# 4. Quality: Soda or native ALF-Checks
 alf add soda --etl sales
+# or: alf add alf-checks   # config/checks/ + DAG 01_alf_checks
 
-# 4. Validate and run
+# 5. Validate and run
 alf validate
 alf run
 ```
@@ -76,42 +82,57 @@ alf run
 
 ## Commands
 
+Commands are grouped in the CLI as **Project**, **Resources**, **Quality**, and **Docker (stack)**. Use `alf help` or `alf --help` for usage. For any command that operates on a project, pass **`-r PATH`** for project root (default: current directory).
+
 ### Project
 
-| Command                               | Description                                                                                                                       |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `alf init [name]`                     | Create a new project (folder with dags/, soda/, docker-compose, etc.). Omit name to use the current directory.                   |
-| `alf validate [-r PATH]`  | Check structure (dags/, soda/, docker-compose) and Docker (daemon, stack). Use `-N` or `-S` to skip Docker/stack checks.  |
+| Command | Description |
+| ------- | ----------- |
+| `alf init [name]` | Create a new project. Demo (User+Task pipeline) included by default; use `-D` for minimal. Options: `-m` Soda, `-b` backend (pandas/pyspark), `-w`/`-W` Docker/local. |
+| `alf upgrade [-n] [-B]` | Update project files from the framework skeleton (optional backup in `.airlakeflow_backup/`). |
+| `alf validate [-r] [-N] [-S] [-q]` | Check structure (dags/, soda/, docker-compose) and Docker (daemon, stack). `-N` skip Docker, `-S` skip stack. |
+| `alf doctor [-r] [-q]` | Extended validation: structure, Docker, Python, permissions; suggests fixes. |
+| `alf help` | Show main help. |
+| `alf version` | Show version. |
 
+### Resources
 
-### ETL and migrations
-
-| Command                   | Description                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `alf new etl NAME`        | Generate an ETL pipeline (bronze, silver, gold, pipeline.py). Options: `--contracts`, `--no-gold`, `--source api|file|jdbc`. |
-| `alf new migration NAME`  | Create a SQL migration (V0XX__name.sql). Choose DAG and layer (bronze/silver/gold) or use `--dag` and `--layer`.       |
-
+| Command | Description |
+| ------- | ----------- |
+| `alf new etl NAME` | Create an ETL pipeline (bronze, silver, gold, pipeline.py). Options: `-t` table, `-c` Soda contracts, `-g`/`-G` gold, `-s` source (api/file/jdbc/...), `--pattern` default/snapshot, `--partition-by`, `--incremental-by`. |
+| `alf new migration NAME` | Create a SQL migration (V0XX__name.sql). `-d` DAG, `-l` layer (bronze/silver/gold); prompted if omitted. |
+| `alf new contract [SCHEMA TABLE]` | Create a contract. Interactive: choose **Soda** (soda/contracts/) or **ALF-Checks** (config/checks/{schema}/{table}.yaml). Schema/table prompted if omitted. |
+| `alf new model NAME` | Create a model in config/models/ and generate its migration. `-l` layer, `--partition-by` column. |
+| `alf list` | List ETL pipelines (dags/ folders with pipeline.py). |
+| `alf migrations generate` | Generate migration SQL from config/models/. `-D` driver (postgres, etc.). |
+| `alf migrations up` | Apply pending migrations. `-u` connection URI. |
+| `alf migrations down` | Rollback last migration. `-n` dry run, `-F` force. |
+| `alf migrations doctor` | Compare models with migrations; report drift. |
+| `alf migrations align` | Align migrations to models (model is reference). `-F` skip confirm. |
+| `alf seed` | Ensure data/seeds/ exists and generate DAG 00_seeds (loads data/seeds/bronze/*.csv and silver/*.csv). |
+| `alf docs [-o DIR] [--format html\|json]` | Generate static catalog from models and migrations (docs/catalog.html or .json). |
 
 ### Quality
 
-| Command                              | Description                                                                                                                          |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `alf add soda [--etl NAME \| --all]` | Integrate Soda: config, contracts, and scan tasks in pipelines. With no option: interactive mode (lists ETLs + “Full project”).     |
+| Command | Description |
+| ------- | ----------- |
+| `alf add soda [-e ETL \| -a]` | Integrate Soda: config, contracts, scan tasks in ETLs. `-e` one ETL, `-a` all. |
+| `alf add greatxp` | Great Expectations (in development). |
+| `alf add alf-checks` | Add ALF-Checks (native): config/checks/, DAG 01_alf_checks. Alternative to Soda. |
 
 
-### Docker (application)
+### Docker (stack)
 
-| Command                    | Description                                                                                                                                 |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `alf run`                  | Start the stack in the background (`docker compose up -d`). Creates `.env` and `logs/` if missing; sets AIRFLOW_UID and Postgres port when possible. |
-| `alf stop`                 | Stop containers.                                                                                                                           |
-| `alf restart`              | Stop and start again.                                                                                                                      |
-| `alf down [--volumes]`     | Tear down the stack (optionally remove volumes).                                                                                           |
-| `alf logs [-f] [SERVICE]`  | Show service logs.                                                                                                                         |
-| `alf ps`                   | List running containers.                                                                                                                   |
-
-
-For any command that operates on a project you can pass `**-r PATH**` (project root; default: current directory). Use `alf help` or `alf h` for usage.
+| Command | Description |
+| ------- | ----------- |
+| `alf run [-b] [-f]` | Start the application (Docker: compose up; local: airflow standalone). `-b` build images, `-f` foreground. |
+| `alf stop` | Stop containers. |
+| `alf restart` | Stop then start. |
+| `alf down [-v]` | Tear down the stack. `-v` remove volumes. |
+| `alf status` | Show stack status (how many services running). |
+| `alf exec SERVICE COMMAND...` | Run a command inside a service container (e.g. `alf exec airflow-scheduler airflow dags list`). |
+| `alf logs [-f] [SERVICE]` | Show container logs. |
+| `alf ps` | List running services. |
 
 ---
 

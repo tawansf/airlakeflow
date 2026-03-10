@@ -165,14 +165,19 @@ architecture: medallion
             req_path.write_text(text, encoding="utf-8")
 
     if not with_demo:
-        for name in ("crypto",):
+        for name in ("demo",):
             demo_dir = dest_path / "dags" / name
             if demo_dir.exists():
                 shutil.rmtree(demo_dir)
-        for c in ("bitcoin_bronze", "bitcoin_silver"):
+        for c in ("user_bronze", "user_silver", "task_bronze", "task_silver"):
             contract = dest_path / "soda" / "contracts" / f"{c}.yaml"
             if contract.exists():
                 contract.unlink()
+        # Remove demo models so init can create default example.py when no models left
+        for m in ("user.py", "task.py", "user_bronze.py", "task_bronze.py"):
+            model_file = dest_path / "config" / "models" / m
+            if model_file.exists():
+                model_file.unlink()
 
     if not with_monitoring:
         monitoring_dir = dest_path / "dags" / "monitoring"
@@ -182,6 +187,15 @@ architecture: medallion
             (dest_path / "dags" / "sql" / "migrations").glob("V006*.sql")
         ):
             m.unlink()
+        # When no Soda: add ALF-Checks (native) for the demo (User + Task)
+        if with_demo:
+            try:
+                from airlakeflow.data_tests_cmd import create_alf_check_file, run_data_tests_cmd
+                run_data_tests_cmd(dest_path)
+                for schema, table in (("bronze", "user"), ("silver", "user"), ("bronze", "task"), ("silver", "task")):
+                    create_alf_check_file(dest_path, schema, table)
+            except Exception:
+                pass
 
     # Create default model if config/models/ has no model files (so migrations have a reference)
     models_dir = dest_path / "config" / "models"
@@ -210,6 +224,14 @@ architecture: medallion
     except Exception:
         pass  # do not fail init if migration generation fails (e.g. no dialect)
 
+    # With demo: generate 00_seeds DAG so the project runs without manual steps (setup → seeds → demo_pipeline)
+    if with_demo:
+        try:
+            from airlakeflow.seed_cmd import run_seed
+            run_seed(dest_path)
+        except Exception:
+            pass
+
     # Create a venv in the project so the user can install deps right away
     venv_dir = dest_path / ".venv"
     if not venv_dir.exists():
@@ -237,8 +259,8 @@ architecture: medallion
         secho_info(
             "  ▸ Runtime: local (no Docker). Run: alf run  (or: pip install -r requirements.txt then airflow db init && airflow standalone)"
         )
-    if with_demo and (dest_path / "dags" / "crypto").exists():
-        secho_info("  ▸ Demo DAG (crypto) included")
+    if with_demo and (dest_path / "dags" / "demo").exists():
+        secho_info("  ▸ Demo pipeline (User + Task) included")
     if with_monitoring and (dest_path / "dags" / "monitoring").exists():
         secho_info("  ▸ Monitoring and Soda included")
     secho_info(f"  ▸ Silver backend: {backend} (edit .airlakeflow.yaml to change)")

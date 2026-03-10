@@ -1,7 +1,0 @@
-# AirLakeFlow project config (runtime is set at init and should not be changed)
-runtime: docker
-silver_backend: pyspark
-architecture: medallion
-soda_data_source: postgres_datawarehouse
-soda_config_path: soda/configuration.yaml
-contracts_dir: soda/contracts
