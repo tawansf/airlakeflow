@@ -298,7 +298,7 @@ def new_etl(
                     raise click.UsageError("ETL name is required.")
                 name = name.strip()
             except ImportError:
-                raise click.UsageError("NAME is required when questionary is not installed.")
+                raise click.UsageError("NAME is required when questionary is not installed.") from None
         else:
             raise click.UsageError(
                 "NAME is required in non-interactive mode. Example: alf new etl vendas"
