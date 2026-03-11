@@ -1,2 +1,0 @@
-# Models go here. Use: alf new model NAME --layer silver
-# Then: alf migrations generate  (generates dags/sql/migrations/*.sql from models)
