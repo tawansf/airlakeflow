@@ -298,7 +298,9 @@ def new_etl(
                     raise click.UsageError("ETL name is required.")
                 name = name.strip()
             except ImportError:
-                raise click.UsageError("NAME is required when questionary is not installed.") from None
+                raise click.UsageError(
+                    "NAME is required when questionary is not installed."
+                ) from None
         else:
             raise click.UsageError(
                 "NAME is required in non-interactive mode. Example: alf new etl vendas"
@@ -429,7 +431,8 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
                 layer = click.prompt("Layer", type=click.Choice(layers))
         else:
             raise click.UsageError(
-                "Layer is required in non-interactive mode. Use -l layer. Choices: " + ", ".join(layers)
+                "Layer is required in non-interactive mode. Use -l layer. Choices: "
+                + ", ".join(layers)
             )
     if layer and layer not in layers:
         raise click.UsageError(f"Layer must be one of: {', '.join(layers)}")
@@ -583,7 +586,9 @@ def new_model(name: str, layer: str | None, partition_by: str | None, project_ro
         layer = default_layer
     if layer and layer not in layers:
         raise click.UsageError(f"Layer must be one of: {', '.join(layers)}")
-    run_new_model(name=name, layer_name=layer or default_layer, project_root=root, partition_by=partition_by)
+    run_new_model(
+        name=name, layer_name=layer or default_layer, project_root=root, partition_by=partition_by
+    )
 
 
 @_cli.group()
