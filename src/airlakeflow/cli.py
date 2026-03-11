@@ -208,7 +208,7 @@ def list_etls(project_root: str):
 
 
 @new.command("etl")
-@click.argument("name", type=str)
+@click.argument("name", type=str, required=False, default=None)
 @click.option("-t", "table_name", default=None, help="Table name. Omit to be asked.")
 @click.option(
     "-c",
@@ -271,7 +271,7 @@ def list_etls(project_root: str):
     help="Project root (default: current directory)",
 )
 def new_etl(
-    name: str,
+    name: str | None,
     table_name: str | None,
     with_contracts: bool,
     with_gold: bool,
@@ -288,6 +288,23 @@ def new_etl(
     if no_gold:
         with_gold = False
     project_root = str(resolve_project_root(project_root))
+    if not name or not (name or "").strip():
+        if sys.stdin.isatty():
+            try:
+                import questionary
+
+                name = questionary.text("ETL name?").ask()
+                if not name or not name.strip():
+                    raise click.UsageError("ETL name is required.")
+                name = name.strip()
+            except ImportError:
+                raise click.UsageError("NAME is required when questionary is not installed.")
+        else:
+            raise click.UsageError(
+                "NAME is required in non-interactive mode. Example: alf new etl vendas"
+            )
+    else:
+        name = name.strip()
     if sys.stdin.isatty():
         try:
             import questionary
@@ -366,9 +383,9 @@ def new_etl(
 @click.option(
     "-l",
     "layer",
-    type=click.Choice(MEDALLION_LAYERS),
+    type=str,
     default=None,
-    help="Layer (bronze/silver/gold). Omit to be asked interactively.",
+    help="Layer. Omit to be asked (choices from project architecture).",
 )
 @click.option(
     "-r",
@@ -385,6 +402,7 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
     if not dags:
         secho_fail("No DAGs found in dags/. Create one with 'alf new etl NAME'.")
         raise SystemExit(1)
+    layers = _architecture_layers(project_root)
     if dag is None:
         if sys.stdin.isatty():
             try:
@@ -396,21 +414,27 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
             except ImportError:
                 dag = click.prompt("Choose the DAG", type=click.Choice(dags))
         else:
-            dag = click.prompt("Choose the DAG", type=click.Choice(dags))
+            raise click.UsageError(
+                "DAG is required in non-interactive mode. Use -d DAG. Example: alf new migration add_column -d crypto -l silver"
+            )
     if layer is None:
         if sys.stdin.isatty():
             try:
                 import questionary
 
-                layer = questionary.select("Layer?", choices=MEDALLION_LAYERS).ask()
+                layer = questionary.select("Layer?", choices=layers).ask()
                 if layer is None:
                     raise KeyboardInterrupt
             except ImportError:
-                layer = click.prompt("Layer", type=click.Choice(MEDALLION_LAYERS))
+                layer = click.prompt("Layer", type=click.Choice(layers))
         else:
-            layer = click.prompt("Layer", type=click.Choice(MEDALLION_LAYERS))
+            raise click.UsageError(
+                "Layer is required in non-interactive mode. Use -l layer. Choices: " + ", ".join(layers)
+            )
+    if layer and layer not in layers:
+        raise click.UsageError(f"Layer must be one of: {', '.join(layers)}")
     run_new_migration(
-        name=name, dag=dag, layer=layer.lower() if layer else "bronze", project_root=project_root
+        name=name, dag=dag, layer=(layer or "bronze").lower(), project_root=project_root
     )
 
 
@@ -441,7 +465,8 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
     """Create a new contract (Soda or ALF-Checks). Schema = layer. Type, schema and table are asked if omitted."""
     project_root = str(resolve_project_root(project_root))
     root = Path(project_root)
-    contract_type: str | None = None  # "soda" | "alf_checks"
+    layers = _architecture_layers(project_root)
+    contract_type: str | None = None
     if sys.stdin.isatty() and (schema is None or table is None):
         try:
             import questionary
@@ -450,8 +475,8 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
                 schema
                 or questionary.select(
                     "Schema (layer)?",
-                    choices=MEDALLION_LAYERS,
-                    default="bronze",
+                    choices=layers,
+                    default=layers[0] if layers else "bronze",
                 ).ask()
             )
             if schema is None:
@@ -475,7 +500,7 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
                 raise KeyboardInterrupt
         except ImportError:
             if schema is None:
-                schema = "bronze"
+                schema = layers[0] if layers else "bronze"
             table = table or click.prompt("Table name?")
             contract_type = "soda"
     if not schema or not table:
@@ -483,6 +508,8 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
             "SCHEMA and TABLE are required (or use interactive mode). "
             "Example: alf new contract bronze my_table"
         )
+    if schema not in layers:
+        raise click.UsageError(f"Schema (layer) must be one of: {', '.join(layers)}")
     if contract_type is None and sys.stdin.isatty():
         try:
             import questionary
@@ -516,9 +543,9 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
 @click.option(
     "-l",
     "layer",
-    type=click.Choice(MEDALLION_LAYERS, case_sensitive=False),
+    type=str,
     default=None,
-    help="Layer (bronze/silver/gold). Omit to be asked interactively.",
+    help="Layer. Omit to be asked (choices from project architecture).",
 )
 @click.option(
     "--partition-by",
@@ -532,14 +559,16 @@ def new_model(name: str, layer: str | None, partition_by: str | None, project_ro
     """Create a new model in config/models/ and generate its migration (dags/sql/migrations/)."""
     project_root = str(resolve_project_root(project_root))
     root = Path(project_root)
+    layers = _architecture_layers(project_root)
+    default_layer = _architecture_default_layer(project_root)
     if sys.stdin.isatty():
         try:
             import questionary
 
             layer = questionary.select(
                 "Layer?",
-                choices=MEDALLION_LAYERS,
-                default=layer or _architecture_default_layer(project_root),
+                choices=layers,
+                default=layer or default_layer,
             ).ask()
             if layer is None:
                 raise KeyboardInterrupt
@@ -549,10 +578,12 @@ def new_model(name: str, layer: str | None, partition_by: str | None, project_ro
             partition_by = p.strip() or None if p is not None else partition_by
         except ImportError:
             if layer is None:
-                layer = _architecture_default_layer(project_root)
+                layer = default_layer
     elif layer is None:
-        layer = _architecture_default_layer(project_root)
-    run_new_model(name=name, layer_name=layer, project_root=root, partition_by=partition_by)
+        layer = default_layer
+    if layer and layer not in layers:
+        raise click.UsageError(f"Layer must be one of: {', '.join(layers)}")
+    run_new_model(name=name, layer_name=layer or default_layer, project_root=root, partition_by=partition_by)
 
 
 @_cli.group()

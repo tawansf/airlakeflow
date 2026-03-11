@@ -107,3 +107,12 @@ def test_new_etl_snapshot_pattern(tmp_path):
     content = trans.read_text()
     assert "valid_from" in content and "valid_to" in content and "is_current" in content
     assert "SCD2" in content
+
+
+def test_new_etl_requires_name_non_interactive(tmp_path):
+    """Without TTY, alf new etl without NAME exits with error."""
+    proj = _minimal_project(tmp_path)
+    runner = CliRunner()
+    r = runner.invoke(cli, ["new", "etl", "-G", "-r", str(proj)])
+    assert r.exit_code != 0
+    assert "NAME is required" in r.output

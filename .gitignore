@@ -215,4 +215,5 @@ __pycache__/
 spark-warehouse/
 derby.log
 planning/
+demos/test-seeds/
 .cursor/

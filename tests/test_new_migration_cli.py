@@ -42,3 +42,15 @@ def test_new_migration_creates_file(tmp_path):
     content = migrations[0].read_text()
     assert "silver" in content.lower()
     assert "crypto" in content.lower() or "nova_migration" in content
+
+
+def test_new_migration_requires_dag_and_layer_non_interactive(tmp_path):
+    """Without TTY, alf new migration NAME without -d or -l exits with error."""
+    proj = _minimal_project_with_dag(tmp_path)
+    runner = CliRunner()
+    r = runner.invoke(
+        cli,
+        ["new", "migration", "add_col", "-r", str(proj)],
+    )
+    assert r.exit_code != 0
+    assert "DAG is required" in r.output or "Layer is required" in r.output
