@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,67 +11,67 @@
   <div class="max-w-6xl mx-auto px-4 py-8">
     <header class="mb-8">
       <h1 class="text-3xl font-bold text-slate-900">{{ titulo }}</h1>
-      <p class="text-slate-500 mt-1">Gerado em {{ data_geracao }}</p>
+      <p class="text-slate-500 mt-1">Generated at {{ data_geracao }}</p>
     </header>
 
     {% if erro %}
     <section class="mb-8 p-4 bg-red-50 border border-red-200 rounded-lg">
-      <h2 class="text-lg font-semibold text-red-800 mb-2">Erro ao gerar relatório</h2>
+      <h2 class="text-lg font-semibold text-red-800 mb-2">Error generating report</h2>
       <p class="text-red-700 text-sm">{{ erro }}</p>
     </section>
     {% endif %}
 
     <section class="mb-8">
-      <h2 class="text-xl font-semibold text-slate-700 mb-4">Resumo (Organization Dashboard)</h2>
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Summary (Organization Dashboard)</h2>
       <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div class="bg-white rounded-lg shadow p-4 border-l-4 border-sky-500">
-          <p class="text-sm text-slate-500">Saúde</p>
+          <p class="text-sm text-slate-500">Health</p>
           <p class="text-2xl font-bold text-sky-600">{{ (resumo.health_score | default(100)) | round(1) }}%</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 border-l-4 border-emerald-500">
-          <p class="text-sm text-slate-500">Aprovados</p>
+          <p class="text-sm text-slate-500">Passed</p>
           <p class="text-2xl font-bold text-emerald-600">{{ resumo.total_aprovados | default(0) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-          <p class="text-sm text-slate-500">Em falha</p>
+          <p class="text-sm text-slate-500">Failed</p>
           <p class="text-2xl font-bold text-red-600">{{ resumo.tabelas_em_falha | default(0) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 border-l-4 border-amber-500">
-          <p class="text-sm text-slate-500">Com alertas</p>
+          <p class="text-sm text-slate-500">With alerts</p>
           <p class="text-2xl font-bold text-amber-600">{{ resumo.total_alertas | default(0) }}</p>
         </div>
         <div class="bg-white rounded-lg shadow p-4 border-l-4 border-slate-400">
-          <p class="text-sm text-slate-500">Tabelas validadas</p>
+          <p class="text-sm text-slate-500">Tables validated</p>
           <p class="text-2xl font-bold text-slate-700">{{ resumo.total_tabelas | default(0) }}</p>
         </div>
       </div>
     </section>
 
     <section class="mb-8">
-      <h2 class="text-xl font-semibold text-slate-700 mb-4">Status por camada</h2>
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Status by layer</h2>
       <div class="bg-white rounded-lg shadow p-4">
         <div id="chartCamadaContainer">
           <canvas id="chartCamada" height="120"></canvas>
         </div>
-        <p id="chartCamadaEmpty" class="text-slate-500 text-sm py-4 hidden">Não há dados para exibir o gráfico.</p>
+        <p id="chartCamadaEmpty" class="text-slate-500 text-sm py-4 hidden">No data to display the chart.</p>
       </div>
     </section>
 
     <section class="mb-8">
-      <h2 class="text-xl font-semibold text-slate-700 mb-4">Tendência (últimos 14 dias)</h2>
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Trend (last 14 days)</h2>
       <div class="bg-white rounded-lg shadow p-4">
         <div id="chartTendenciaContainer">
           <canvas id="chartTendencia" height="120"></canvas>
         </div>
-        <p id="chartTendenciaEmpty" class="text-slate-500 text-sm py-4 hidden">Não há dados para exibir o gráfico de tendência.</p>
+        <p id="chartTendenciaEmpty" class="text-slate-500 text-sm py-4 hidden">No data to display the trend chart.</p>
       </div>
     </section>
 
     <section class="mb-8">
-      <h2 class="text-xl font-semibold text-slate-700 mb-4">Monitores por tabela (Metric Monitors)</h2>
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Monitors by table (Metric Monitors)</h2>
       {% if not detalhes %}
       <div class="bg-white rounded-lg shadow p-8 text-center text-slate-500">
-        <p>Nenhuma execução de qualidade encontrada.</p>
+        <p>No quality runs found.</p>
       </div>
       {% else %}
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -79,11 +79,11 @@
         <div class="bg-white rounded-lg shadow p-4 border border-slate-200 hover:border-slate-300 transition-colors">
           <div class="flex items-center justify-between mb-2">
             <p class="text-sm font-medium text-slate-800 truncate" title="{{ row.nome_tabela | default('–') }}">{{ row.nome_tabela | default('–') }}</p>
-            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full shrink-0 {% if row.status_geral == 'Aprovado' %}bg-emerald-100 text-emerald-800{% elif row.status_geral == 'Reprovado' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+            <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full shrink-0 {% if row.status_geral == 'Aprovado' or row.status_geral == 'Passed' %}bg-emerald-100 text-emerald-800{% elif row.status_geral == 'Reprovado' or row.status_geral == 'Failed' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
               {{ row.status_geral | default('–') }}
             </span>
           </div>
-          <p class="text-xs text-slate-500 mb-1">Taxa: {{ (row.taxa_sucesso | default(0)) | round(1) }}% · {{ row.regras_com_sucesso | default(0) }}/{{ row.total_regras | default(0) }} regras</p>
+          <p class="text-xs text-slate-500 mb-1">Rate: {{ (row.taxa_sucesso | default(0)) | round(1) }}% · {{ row.regras_com_sucesso | default(0) }}/{{ row.total_regras | default(0) }} rules</p>
           <div class="h-10 mt-2">
             <canvas id="card-spark-{{ loop.index0 }}" height="40" width="260"></canvas>
           </div>
@@ -94,11 +94,11 @@
     </section>
 
     <section class="mb-8">
-      <h2 class="text-xl font-semibold text-slate-700 mb-4">Última execução por tabela</h2>
+      <h2 class="text-xl font-semibold text-slate-700 mb-4">Last run per table</h2>
       {% if not detalhes %}
       <div class="bg-white rounded-lg shadow p-8 text-center text-slate-500">
-        <p>Nenhuma execução de qualidade encontrada.</p>
-        <p class="text-sm mt-2">Execute o pipeline e gere o relatório novamente.</p>
+        <p>No quality runs found.</p>
+        <p class="text-sm mt-2">Run the pipeline and generate the report again.</p>
       </div>
       {% else %}
       <div class="bg-white rounded-lg shadow overflow-x-auto">
@@ -106,21 +106,21 @@
           <thead class="bg-slate-100">
             <tr>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase w-8"></th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Tabela</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Camada</th>
-              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Data execução</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Table</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Layer</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Run time</th>
               <th class="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase">Status</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Taxa sucesso</th>
-              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Regras</th>
-              <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-28">Últimos 7</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Success rate</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-600 uppercase">Rules</th>
+              <th class="px-4 py-3 text-center text-xs font-semibold text-slate-600 uppercase w-28">Last 7</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-slate-200">
             {% for row in detalhes %}
-            <tr class="{% if row.status_geral == 'Reprovado' %}bg-red-50{% elif row.status_geral == 'Aprovado com Alertas' %}bg-amber-50{% else %}bg-white{% endif %}" data-row-index="{{ loop.index0 }}">
+            <tr class="{% if row.status_geral == 'Reprovado' or row.status_geral == 'Failed' %}bg-red-50{% elif row.status_geral == 'Aprovado com Alertas' or row.status_geral == 'Passed with Alerts' %}bg-amber-50{% else %}bg-white{% endif %}" data-row-index="{{ loop.index0 }}">
               <td class="px-4 py-3">
                 {% if row.checks_list or row.measurements or (row.timestamps and row.timestamps.started != '–') or (row.contract_status and row.contract_status != '–') %}
-                <button type="button" class="text-slate-500 hover:text-slate-700 text-sm underline expand-checks" data-row="{{ loop.index0 }}" aria-label="Ver detalhes">Ver detalhes</button>
+                <button type="button" class="text-slate-500 hover:text-slate-700 text-sm underline expand-checks" data-row="{{ loop.index0 }}" aria-label="View details">View details</button>
                 {% else %}
                 <span class="text-slate-400">–</span>
                 {% endif %}
@@ -129,7 +129,7 @@
               <td class="px-4 py-3 text-sm text-slate-600">{{ row.camada | default('–') }}</td>
               <td class="px-4 py-3 text-sm text-slate-600">{{ row.data_execucao | default('–') }}</td>
               <td class="px-4 py-3">
-                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {% if row.status_geral == 'Aprovado' %}bg-emerald-100 text-emerald-800{% elif row.status_geral == 'Reprovado' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
+                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full {% if row.status_geral == 'Aprovado' or row.status_geral == 'Passed' %}bg-emerald-100 text-emerald-800{% elif row.status_geral == 'Reprovado' or row.status_geral == 'Failed' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">
                   {{ row.status_geral | default('–') }}
                 </span>
               </td>
@@ -146,28 +146,28 @@
                   {% if row.contract_status != '–' or (row.timestamps and row.timestamps.started != '–') %}
                   <div class="flex flex-wrap gap-4 items-center">
                     {% if row.contract_status != '–' %}
-                    <span class="font-medium text-slate-600">Status do contrato:</span>
+                    <span class="font-medium text-slate-600">Contract status:</span>
                     <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full {% if row.contract_status == 'PASSED' %}bg-emerald-100 text-emerald-800{% elif row.contract_status == 'FAILED' %}bg-red-100 text-red-800{% elif row.contract_status == 'WARNED' %}bg-amber-100 text-amber-800{% else %}bg-slate-100 text-slate-700{% endif %}">{{ row.contract_status }}</span>
                     {% endif %}
                     {% if row.timestamps and (row.timestamps.started != '–' or row.timestamps.ended != '–' or row.timestamps.data != '–') %}
                     <span class="font-medium text-slate-600">Timestamps:</span>
-                    <span class="text-slate-600">Início {{ row.timestamps.started }} · Fim {{ row.timestamps.ended }}{% if row.timestamps.data != '–' %} · Dados {{ row.timestamps.data }}{% endif %}</span>
+                    <span class="text-slate-600">Start {{ row.timestamps.started }} · End {{ row.timestamps.ended }}{% if row.timestamps.data != '–' %} · Data {{ row.timestamps.data }}{% endif %}</span>
                     {% endif %}
                   </div>
                   {% endif %}
                   {% if row.checks_list %}
                   <div>
-                    <p class="font-medium text-slate-600 mb-2">Regras executadas (Soda 4):</p>
+                    <p class="font-medium text-slate-600 mb-2">Executed rules (Soda 4):</p>
                     <ul class="space-y-2">
                       {% for check in row.checks_list %}
                       <li class="border-l-2 border-slate-200 pl-3 py-1">
                         <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded mr-2 {% if check.outcome == 'pass' %}bg-emerald-100 text-emerald-800{% elif check.outcome == 'fail' %}bg-red-100 text-red-800{% else %}bg-amber-100 text-amber-800{% endif %}">{{ check.outcome | default('–') }}</span>
-                        <span class="font-medium">{{ check.name | default('Sem nome') }}</span>
+                        <span class="font-medium">{{ check.name | default('Unnamed') }}</span>
                         {% if check.check_type and check.check_type != '–' %}<span class="text-slate-500 text-xs">({{ check.check_type }})</span>{% endif %}
-                        {% if check.column_name and check.column_name != '–' %}<span class="text-slate-500 text-xs"> coluna: {{ check.column_name }}</span>{% endif %}
-                        {% if check.threshold_value is not none %}<span class="text-slate-600 text-xs"> · limite: {{ check.threshold_value }}</span>{% endif %}
+                        {% if check.column_name and check.column_name != '–' %}<span class="text-slate-500 text-xs"> column: {{ check.column_name }}</span>{% endif %}
+                        {% if check.threshold_value is not none %}<span class="text-slate-600 text-xs"> · threshold: {{ check.threshold_value }}</span>{% endif %}
                         {% if check.diagnostic_metric_values %}
-                        <div class="mt-1 text-xs text-slate-600">Métricas: {% for k, v in check.diagnostic_metric_values.items() %}{{ k }}: {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</div>
+                        <div class="mt-1 text-xs text-slate-600">Metrics: {% for k, v in check.diagnostic_metric_values.items() %}{{ k }}: {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}</div>
                         {% endif %}
                       </li>
                       {% endfor %}
@@ -176,7 +176,7 @@
                   {% endif %}
                   {% if row.measurements %}
                   <div>
-                    <p class="font-medium text-slate-600 mb-2">Métricas capturadas:</p>
+                    <p class="font-medium text-slate-600 mb-2">Captured metrics:</p>
                     <ul class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-slate-600">
                       {% for m in row.measurements %}
                       <li class="flex justify-between gap-2"><span>{{ m.metric_name | default(m.metric_id) | default('–') }}</span><span class="font-mono">{{ m.value }}</span></li>
@@ -196,7 +196,7 @@
     </section>
 
     <footer class="text-sm text-slate-400 pt-4 border-t border-slate-200">
-      Fonte: tabela monitoring.soda_metricas. Gerado pelo job relatorio_soda_metricas.
+      Source: table monitoring.soda_metricas. Generated by job relatorio_soda_metricas.
     </footer>
   </div>
 
@@ -239,7 +239,7 @@
         const detailRow = document.querySelector('tr.checks-detail[data-detail-row="' + rowIndex + '"]');
         if (detailRow) {
           detailRow.classList.toggle('hidden');
-          this.textContent = detailRow.classList.contains('hidden') ? 'Ver checks' : 'Ocultar';
+          this.textContent = detailRow.classList.contains('hidden') ? 'Show checks' : 'Hide';
         }
       });
     });

@@ -25,20 +25,19 @@ def _fetch_bitcoin_data(url: str, timeout: int, max_retries: int, backoff_base: 
         try:
             response = requests.get(url, timeout=timeout)
             if response.status_code != 200:
-                raise RuntimeError(
-                    f"API retornou status {response.status_code} (esperado 200). "
-                    f"URL: {url}"
-                )
+            raise RuntimeError(
+                f"API returned status {response.status_code} (expected 200). URL: {url}"
+            )
             return response.json()
         except requests.exceptions.Timeout as e:
-            last_error = RuntimeError(f"Timeout ao chamar API após {timeout}s: {e}")
-            logger.warning("Tentativa %s/%s: timeout.", attempt, max_retries)
+            last_error = RuntimeError(f"Timeout calling API after {timeout}s: {e}")
+            logger.warning("Attempt %s/%s: timeout.", attempt, max_retries)
         except requests.exceptions.RequestException as e:
-            last_error = RuntimeError(f"Erro de rede ao chamar API: {e}")
-            logger.warning("Tentativa %s/%s: erro de rede.", attempt, max_retries)
+            last_error = RuntimeError(f"Network error calling API: {e}")
+            logger.warning("Attempt %s/%s: network error.", attempt, max_retries)
         except json.JSONDecodeError as e:
-            last_error = RuntimeError(f"Resposta da API não é JSON válido: {e}")
-            logger.warning("Tentativa %s/%s: JSON inválido.", attempt, max_retries)
+            last_error = RuntimeError(f"API response is not valid JSON: {e}")
+            logger.warning("Attempt %s/%s: invalid JSON.", attempt, max_retries)
         if attempt < max_retries:
             delay = backoff_base ** attempt
             time.sleep(delay)
@@ -47,7 +46,7 @@ def _fetch_bitcoin_data(url: str, timeout: int, max_retries: int, backoff_base: 
 
 def bronze_ingestion_data_bitcoin():
     if not GEEKO_URL_API:
-        raise ValueError("GEEKO_URL_API não configurada (variável de ambiente ausente).")
+        raise ValueError("GEEKO_URL_API not configured (missing environment variable).")
 
     data = _fetch_bitcoin_data(
         GEEKO_URL_API,
@@ -62,7 +61,7 @@ def bronze_ingestion_data_bitcoin():
     insert_sql = """INSERT INTO bronze.bitcoin_raw (payload) VALUES (%s);"""
     pg_hook.run(insert_sql, parameters=[payload_str])
 
-    logger.info("Ingestão Bronze Bitcoin concluída: 1 registro inserido em bronze.bitcoin_raw.")
+    logger.info("Bronze ingestion for Bitcoin completed: 1 record inserted into bronze.bitcoin_raw.")
 
 default_args_bronze = {
     "retries": 2,

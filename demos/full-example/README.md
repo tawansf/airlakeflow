@@ -1,6 +1,6 @@
 # Full example – End-to-End Data Engineering Pipeline
 
-**Este é um exemplo de implementação completo**, gerado e evoluído com o framework AirLakeFlow. O repositório principal é o framework; em `demos/` ficam exemplos como este.
+**This is a full end-to-end example implementation**, generated and evolved with the AirLakeFlow framework. The main repository is the framework; example projects like this one live in `demos/`.
 
 This project serves as a robust, agnostic template for building scalable data pipelines. It implements a modern data stack architecture using containerization, distributed processing, and automated data quality checks, designed to be easily adaptable to various business domains.
 
@@ -97,12 +97,12 @@ Before the pipeline completes, Soda Core scans the transformed data against defi
     * **Port:** `5432`
     * Save.
 
-## Runbook (operação)
+## Runbook (operations)
 
-* **Ingestão Bronze falha (API ou timeout):** Verifique logs da task `bronze_ingestion_data_bitcoin`. Confirme `GEEKO_URL_API` no `.env` e conectividade. O DAG faz 2 retries com 1 minuto de intervalo; se persistir, revise rate limit da API ou aumente `API_TIMEOUT_SECONDS` / `API_MAX_RETRIES`.
-* **Soda falha (quality):** Abra o log da task `soda_scan_silver_bitcoin` ou `soda_scan_bronze_bitcoin` e veja qual check falhou (Soda imprime o nome). Ajuste os arquivos em `soda/checks/` ou os dados na tabela. Para credenciais do Soda, edite `soda/configuration.yaml` ou use variáveis de ambiente em produção.
-* **Re-rodar apenas Silver (ou Gold):** No Airflow, use o DAG `02_silver_transformation_data_bitcoin` ou `04_gold_aggregate_bitcoin_daily` e dispare uma run manual. Para re-processar apenas uma data, seria necessário um parâmetro ou DAG com conf (não implementado por padrão).
-* **Onde ver logs:** Airflow UI → DAG run → task → “Log”. Logs do scheduler/worker também em `logs/` no projeto.
+* **Bronze ingestion failure (API or timeout):** Check the logs for the task `bronze_ingestion_data_bitcoin`. Confirm `GEEKO_URL_API` in `.env` and network connectivity. The DAG retries twice with a 1-minute interval; if the issue persists, review API rate limits or increase `API_TIMEOUT_SECONDS` / `API_MAX_RETRIES`.
+* **Soda failure (quality):** Open the log for `soda_scan_silver_bitcoin` or `soda_scan_bronze_bitcoin` and check which check failed (Soda prints the check name). Adjust files in `soda/checks/` or the table data. For Soda credentials, edit `soda/configuration.yaml` or use environment variables in production.
+* **Run only Silver (or Gold):** In Airflow, use the DAG `02_silver_transformation_data_bitcoin` or `04_gold_aggregate_bitcoin_daily` and trigger a manual run. Reprocessing a single date would require a parameterized DAG or config (not implemented by default).
+* **Where to find logs:** Airflow UI → DAG run → task → "Log". Scheduler/worker logs are also available in the project's `logs/` directory.
 
 ## CLI (AirLakeFlow / alf)
 

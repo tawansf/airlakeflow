@@ -52,8 +52,8 @@ from airlakeflow.validate_cmd import run_validate
 # Command groups for help sections (same order as in alf --help)
 DOCKER_COMMANDS = frozenset({"down", "exec", "logs", "ps", "restart", "run", "status", "stop"})
 QUALITY_COMMANDS = frozenset({"add"})
-FRAMEWORK_PROJETO = frozenset({"init", "upgrade", "validate", "doctor", "help", "version"})
-FRAMEWORK_RECURSOS = frozenset({"new", "list", "migrations", "seed", "docs"})
+PROJECT_COMMANDS = frozenset({"init", "upgrade", "validate", "doctor", "help", "version"})
+RESOURCE_COMMANDS = frozenset({"new", "list", "migrations", "seed", "docs"})
 HIDDEN_ALIASES = frozenset({"m"})  # migrations alias; show only "migrations"
 
 
@@ -62,8 +62,8 @@ class AlfGroup(click.Group):
 
     def format_commands(self, ctx, formatter):
         commands = sorted(self.list_commands(ctx))
-        projeto = [c for c in commands if c in FRAMEWORK_PROJETO]
-        recursos = [c for c in commands if c in FRAMEWORK_RECURSOS]
+        projeto = [c for c in commands if c in PROJECT_COMMANDS]
+        recursos = [c for c in commands if c in RESOURCE_COMMANDS]
         quality = [c for c in commands if c in QUALITY_COMMANDS]
         docker = [c for c in commands if c in DOCKER_COMMANDS]
         max_len = max((len(name) for name in commands), default=0)
@@ -107,7 +107,7 @@ def _get_version() -> str:
 @click.group(cls=AlfGroup, invoke_without_command=True, add_help_option=False)
 @click.pass_context
 def _cli(ctx: click.Context):
-    """AirLakeFlow — CLI for the framework (Bronze / Silver / Gold)."""
+    """AirLakeFlow -- CLI for the framework (Bronze / Silver / Gold)."""
     if ctx.invoked_subcommand is None:
         print_banner(_get_version())
         click.echo(ctx.get_help())

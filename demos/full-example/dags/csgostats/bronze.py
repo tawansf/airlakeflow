@@ -11,9 +11,9 @@ logger = logging.getLogger(__name__)
 
 
 def bronze_ingestion_data_csgostats():
-    """Ingestão bronze para csgostats. Ajuste a fonte conforme --source (api/file/jdbc)."""
+    """Bronze ingestion for csgostats. Adjust the source according to --source (api/file/jdbc)."""
     pg_hook = PostgresHook(postgres_conn_id="postgres_datawarehouse")
-    # Exemplo: API. Substitua pela URL e lógica reais.
+    # Example: API. Replace with the real URL and logic.
     import json
     import requests
     url = os.getenv("CSGOSTATS_API_URL", "https://api.example.com/data")
@@ -24,4 +24,4 @@ def bronze_ingestion_data_csgostats():
     payload_str = json.dumps(data)
     insert_sql = """INSERT INTO bronze.csgostats_raw (payload) VALUES (%s);"""
     pg_hook.run(insert_sql, parameters=[payload_str])
-    logger.info("Ingestão Bronze csgostats concluída.")
+    logger.info("Bronze ingestion for csgostats completed.")

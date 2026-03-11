@@ -1,32 +1,30 @@
-# Exemplos AirLakeFlow
+# AirLakeFlow Examples
 
-Esta pasta contém **projetos de demonstração** do framework. Cada subpasta é um projeto AirLakeFlow independente.
+This folder contains demonstration projects for the framework. Each subfolder is an independent AirLakeFlow project.
 
-## Exemplos disponíveis
+## Available examples
 
-
-| Projeto          | Descrição                                                                                                                   |
+| Project          | Description                                                                                                                   |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| **full-example** | Pipeline completo: DAG crypto (Bronze → Silver → Gold), Soda, monitoring. Use como referência de estrutura e boas práticas. |
-| **test-project** | Projeto mínimo para testes rápidos.                                                                                         |
+| **full-example** | Full pipeline: crypto DAG (Bronze → Silver → Gold), Soda, monitoring. Use as a structure and best-practices reference.       |
+| **test-project** | Minimal project for quick tests.                                                                                              |
 
+## How to run an example
 
-## Como rodar um exemplo
-
-1. Instale o framework na **raiz do repositório** (uma vez):
-  `pip install -e .` (na pasta `full-example/`).
-2. Entre na pasta do projeto (cada exemplo é um projeto):
+1. Install the framework at the **repository root** (once):
+  `pip install -e .` (from the `full-example/` folder).
+2. Enter the example project folder (each example is a project):
   ```bash
    cd demos/full-example
   ```
-3. Use os comandos `alf` a partir daí (a raiz do projeto é `full-example/`, não `demos/`):
+3. Use the `alf` commands from there (the project root is `full-example/`, not `demos/`):
   ```bash
    alf doctor
    alf run
   ```
 
-Cada projeto pode ter seu próprio `.airlakeflow.yaml` e `.env` na raiz da subpasta (ex.: `demos/full-example/.env`).
+Each project may have its own `.airlakeflow.yaml` and `.env` at the example root (e.g. `demos/full-example/.env`).
 
 ---
 
-Para documentação do framework, instalação e comandos, veja o [README principal](../README.md) na raiz do repositório.
+For framework documentation, installation and commands, see the [main README](../README.md) at the repository root.

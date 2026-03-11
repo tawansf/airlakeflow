@@ -3,6 +3,29 @@
 from pathlib import Path
 
 from airlakeflow.migration_gen import generate_migrations
+from airlakeflow.new_model_cmd import run_new_model
+
+
+def test_generate_partitioned_migration(tmp_path: Path):
+    project_root = tmp_path
+    (project_root / "config" / "models").mkdir(parents=True, exist_ok=True)
+    (project_root / "dags" / "sql" / "migrations").mkdir(parents=True, exist_ok=True)
+    (project_root / ".airlakeflow.yaml").write_text("migration_driver: postgres\n")
+
+    run_new_model(
+        name="orders",
+        layer_name="silver",
+        project_root=project_root,
+        partition_by="data_registro",
+    )
+
+    migrations_dir = project_root / "dags" / "sql" / "migrations"
+    migration_files = list(migrations_dir.glob("V*__setup_silver_orders.sql"))
+    assert migration_files, "Migration file for silver.orders was not created"
+    content = migration_files[0].read_text(encoding="utf-8")
+    assert (
+        "PARTITION BY RANGE (data_registro)" in content or "PARTITION BY RANGE" in content
+    ), "Partitioned migration should contain PARTITION BY RANGE"
 
 
 def _project_with_one_model(tmp_path: Path) -> Path:

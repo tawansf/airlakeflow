@@ -1,11 +1,15 @@
 # Data contract - Bronze User (demo)
-dataset: postgres_datawarehouse/datawarehouse/bronze/user
+dataset: spark_df/__TABLE__
 
 checks:
   - row_count:
-      name: Table exists and is readable
+      name: "Table row count must be greater than 0"
       threshold:
-        must_be_greater_than_or_equal: 0
+        must_be_greater_than: 0
+  - schema:
+      name: "Table schema must be valid"
+      allow_extra_columns: false
+      allow_other_column_order: false
 
 columns:
   - name: name

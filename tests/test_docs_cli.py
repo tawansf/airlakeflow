@@ -16,7 +16,7 @@ def test_docs_creates_catalog_html(tmp_path):
     out = tmp_path / "docs" / "catalog.html"
     assert out.exists()
     content = out.read_text()
-    assert "Catálogo" in content or "catalog" in content.lower()
+    assert "catalog" in content.lower()
     assert "<table" in content
 
 

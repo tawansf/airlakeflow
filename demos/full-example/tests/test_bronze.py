@@ -43,7 +43,7 @@ def test_fetch_bitcoin_data_invalid_json():
     mock_response.json.side_effect = json.JSONDecodeError("err", "doc", 0)
 
     with patch("crypto.bronze.requests.get", return_value=mock_response):
-        with pytest.raises(RuntimeError, match="JSON válido"):
+        with pytest.raises(RuntimeError, match="API response is not valid JSON"):
             _fetch_bitcoin_data("http://example.com", timeout=10, max_retries=1, backoff_base=0.1)
 
 
@@ -52,7 +52,7 @@ def test_bronze_ingestion_missing_url():
     from crypto.bronze import bronze_ingestion_data_bitcoin
 
     with patch.object(bronze_mod, "GEEKO_URL_API", None):
-        with pytest.raises(ValueError, match="GEEKO_URL_API não configurada"):
+        with pytest.raises(ValueError, match="GEEKO_URL_API not configured"):
             bronze_ingestion_data_bitcoin()
 
 

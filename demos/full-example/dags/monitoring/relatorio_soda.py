@@ -46,11 +46,11 @@ ORDER BY nome_tabela, data_execucao ASC;
 
 
 def _build_resumo(detalhes: list[dict]) -> dict:
-    total_aprovados = sum(1 for d in detalhes if d.get("status_geral") == "Aprovado")
-    total_reprovados = sum(1 for d in detalhes if d.get("status_geral") == "Reprovado")
-    total_alertas = sum(1 for d in detalhes if d.get("status_geral") == "Aprovado com Alertas")
+    total_aprovados = sum(1 for d in detalhes if d.get("status_geral") in ("Aprovado", "Passed"))
+    total_reprovados = sum(1 for d in detalhes if d.get("status_geral") in ("Reprovado", "Failed"))
+    total_alertas = sum(1 for d in detalhes if d.get("status_geral") in ("Aprovado com Alertas", "Passed with Alerts"))
     total_tabelas = len(detalhes)
-    # Health Score: % de tabelas sem falha (aprovadas ou com alertas); 100% se não houver tabelas
+    # Health Score: % of tables without failure (passed or with alerts); 100% if there are no tables
     health_score = (
         round((total_tabelas - total_reprovados) / total_tabelas * 100, 1)
         if total_tabelas
@@ -75,9 +75,9 @@ def _build_dados_grafico(detalhes: list[dict]) -> dict:
         if camada not in by_camada:
             by_camada[camada] = {"aprovados": 0, "reprovados": 0, "alertas": 0}
         s = d.get("status_geral")
-        if s == "Aprovado":
+        if s in ("Aprovado", "Passed"):
             by_camada[camada]["aprovados"] += 1
-        elif s == "Reprovado":
+        elif s in ("Reprovado", "Failed"):
             by_camada[camada]["reprovados"] += 1
         else:
             by_camada[camada]["alertas"] += 1
@@ -85,15 +85,15 @@ def _build_dados_grafico(detalhes: list[dict]) -> dict:
     return {
         "labels": labels,
         "datasets": [
-            {"label": "Aprovados", "data": [by_camada[l]["aprovados"] for l in labels], "backgroundColor": "rgb(16, 185, 129)"},
-            {"label": "Reprovados", "data": [by_camada[l]["reprovados"] for l in labels], "backgroundColor": "rgb(239, 68, 68)"},
-            {"label": "Alertas", "data": [by_camada[l]["alertas"] for l in labels], "backgroundColor": "rgb(245, 158, 11)"},
+            {"label": "Passed", "data": [by_camada[l]["aprovados"] for l in labels], "backgroundColor": "rgb(16, 185, 129)"},
+            {"label": "Failed", "data": [by_camada[l]["reprovados"] for l in labels], "backgroundColor": "rgb(239, 68, 68)"},
+            {"label": "Alerts", "data": [by_camada[l]["alertas"] for l in labels], "backgroundColor": "rgb(245, 158, 11)"},
         ],
     }
 
 
 def _build_sparkline_por_tabela(raw: list[tuple]) -> dict:
-    """Para cada nome_tabela, monta { labels: [datas], data: [taxa_sucesso] } (ordem cronológica)."""
+    """For each table name, build { labels: [dates], data: [success_rate] } (chronological order)."""
     from collections import defaultdict
     by_table = defaultdict(list)
     for r in raw:
@@ -110,7 +110,7 @@ def _build_dados_grafico_tendencia(raw_tendencia: list[tuple]) -> dict:
     from collections import defaultdict
     if not raw_tendencia:
         return {"labels": [], "datasets": []}
-    by_dia = defaultdict(lambda: {"Aprovado": 0, "Reprovado": 0, "Aprovado com Alertas": 0})
+    by_dia = defaultdict(lambda: {"Passed": 0, "Failed": 0, "Passed with Alerts": 0})
     for r in raw_tendencia:
         dia, status_geral, qtd = r[0], r[1], r[2]
         by_dia[dia][status_geral] = qtd
@@ -119,9 +119,9 @@ def _build_dados_grafico_tendencia(raw_tendencia: list[tuple]) -> dict:
     return {
         "labels": labels,
         "datasets": [
-            {"label": "Aprovados", "data": [by_dia[d]["Aprovado"] for d in dias_ordem], "borderColor": "rgb(16, 185, 129)", "fill": False},
-            {"label": "Reprovados", "data": [by_dia[d]["Reprovado"] for d in dias_ordem], "borderColor": "rgb(239, 68, 68)", "fill": False},
-            {"label": "Alertas", "data": [by_dia[d]["Aprovado com Alertas"] for d in dias_ordem], "borderColor": "rgb(245, 158, 11)", "fill": False},
+            {"label": "Passed", "data": [by_dia[d]["Passed"] for d in dias_ordem], "borderColor": "rgb(16, 185, 129)", "fill": False},
+            {"label": "Failed", "data": [by_dia[d]["Failed"] for d in dias_ordem], "borderColor": "rgb(239, 68, 68)", "fill": False},
+            {"label": "Alerts", "data": [by_dia[d]["Passed with Alerts"] for d in dias_ordem], "borderColor": "rgb(245, 158, 11)", "fill": False},
         ],
     }
 
@@ -129,7 +129,7 @@ def _build_dados_grafico_tendencia(raw_tendencia: list[tuple]) -> dict:
 def gerar_relatorio_soda(
     conn_id: str = "postgres_datawarehouse",
     output_path: str | None = None,
-    titulo: str = "Relatório de Qualidade Soda",
+    titulo: str = "Soda Quality Report",
 ) -> str:
     if output_path is None:
         base = os.getenv("AIRFLOW_HOME", "/opt/airflow")
@@ -230,7 +230,7 @@ def gerar_relatorio_soda(
             erro=None,
         )
     except Exception as e:
-        logger.exception("Erro ao gerar relatório Soda")
+        logger.exception("Error generating Soda report")
         html = template.render(
             titulo=titulo,
             data_geracao=datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -243,7 +243,7 @@ def gerar_relatorio_soda(
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html)
-    logger.info("Relatório Soda gerado: %s", output_path)
+    logger.info("Soda report generated: %s", output_path)
     return output_path
 
 

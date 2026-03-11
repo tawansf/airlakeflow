@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def _to_serializable(val: Any) -> Any:
-    """Converte valores para tipos JSON-serializáveis."""
+    """Convert values to JSON-serializable types."""
     if val is None:
         return None
     if hasattr(val, "isoformat"):
@@ -32,7 +32,7 @@ def _to_serializable(val: Any) -> Any:
 
 
 def _parse_dataset_from_contract_file(content: str) -> tuple[Optional[str], Optional[str]]:
-    """Extrai schema e tabela do dataset fully qualified (data_source/db/schema/table)."""
+    """Extract schema and table from a fully-qualified dataset (data_source/db/schema/table)."""
     match = re.search(r"dataset:\s*[\w\-]+/[\w\-]+/([\w\-]+)/([\w\-]+)", content)
     if match:
         return match.group(1), match.group(2)
@@ -49,12 +49,12 @@ def _aggregate_scan_results(
     regras_alerta = sum(1 for c in checks if (c.get("outcome") or "").lower() == "warn")
     taxa = (regras_sucesso / total * 100.0) if total else 0.0
     if regras_falha > 0 or has_errors:
-        status_geral = "Reprovado"
+        status_geral = "Failed"
     elif regras_alerta > 0:
-        status_geral = "Aprovado com Alertas"
+        status_geral = "Passed with Alerts"
     else:
-        status_geral = "Aprovado"
-    lista_falhas = [c.get("name") or c.get("check_name") or "Sem nome" for c in checks if (c.get("outcome") or "").lower() == "fail"]
+        status_geral = "Passed"
+    lista_falhas = [c.get("name") or c.get("check_name") or "Unnamed" for c in checks if (c.get("outcome") or "").lower() == "fail"]
     lista_regras_reprovadas = ", ".join(lista_falhas) if lista_falhas else None
     checks_executados = [{"name": c.get("name") or c.get("check_name"), "outcome": c.get("outcome")} for c in checks]
     return {
@@ -71,7 +71,7 @@ def _aggregate_scan_results(
 
 
 def _serialize_soda4_result(result: Any) -> dict[str, Any]:
-    """Serializa o resultado completo de verify_contract_locally para dict JSON."""
+    """Serialize the full result of verify_contract_locally to a JSON-serializable dict."""
     session = {
         "is_ok": getattr(result, "is_ok", None),
         "is_warned": getattr(result, "is_warned", None),
@@ -216,8 +216,8 @@ def _run_verify_v4(
     Optional[datetime], Optional[datetime], Optional[datetime], Optional[str], Optional[list],
 ]:
     """
-    Executa verify_contract_locally (Soda 4+).
-    Retorna (checks_for_agg, has_errors, json_resultado_completo, exit_code,
+    Execute verify_contract_locally (Soda 4+).
+    Returns (checks_for_agg, has_errors, json_full_result, exit_code,
              started_timestamp, ended_timestamp, data_timestamp, contract_status, measurements).
     """
     try:
@@ -317,9 +317,9 @@ def run_soda_scan_and_persist(
     task_id: str,
 ) -> int:
     """
-    Executa verificação de contrato Soda 4+, persiste em monitoring.soda_metricas.
-    contract_path: caminho para o YAML do contrato (ex.: soda/contracts/bitcoin_bronze.yaml).
-    config_path: caminho para o data source YAML (ex.: soda/configuration.yaml).
+    Execute a Soda 4+ contract verification and persist results into monitoring.soda_metricas.
+    contract_path: path to the contract YAML (e.g.: soda/contracts/bitcoin_bronze.yaml).
+    config_path: path to the data source YAML (e.g.: soda/configuration.yaml).
     """
     config = config_path if os.path.isabs(config_path) else config_path
     contract = contract_path if os.path.isabs(contract_path) else contract_path
@@ -392,7 +392,7 @@ def run_soda_scan_and_persist(
         return exit_code
     hint = ""
     if cli_used and ("unknown command" in (stderr or "").lower() or "contract" in (stderr or "").lower() and "not found" in (stderr or "").lower() or not stderr):
-        hint = " Se o CLI não reconhecer 'contract verify', instale Soda 4 (soda-core>=4, soda-postgres>=4) e reconstrua a imagem do Airflow."
+        hint = " If the CLI doesn't recognize 'contract verify', install Soda 4 (soda-core>=4, soda-postgres>=4) and rebuild the Airflow image."
     err_msg = "Soda contract verify failed with exit code %s.%s" % (exit_code, hint)
     if stderr:
         err_msg += " stderr: %s" % (stderr[:500] if len(stderr) > 500 else stderr)

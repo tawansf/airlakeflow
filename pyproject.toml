@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airlakeflow"
-version = "0.1.0"
-description = "AirLakeFlow: framework (bronze/silver/gold) com Airflow, Soda e CLI"
+version = "0.2.0"
+description = "AirLakeFlow: data engineering framework (bronze/silver/gold) with Airflow, Soda, and CLI"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"

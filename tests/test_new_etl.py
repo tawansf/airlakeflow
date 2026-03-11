@@ -5,6 +5,31 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from airlakeflow.cli import cli
+from airlakeflow.new_etl import run_new_etl
+
+
+def test_run_new_etl_creates_files(tmp_path: Path):
+    root = tmp_path
+    run_new_etl(
+        name="sales",
+        table_name="sales",
+        with_contracts=True,
+        with_gold=True,
+        source="api",
+        use_spark=False,
+        project_root=str(root),
+        pattern="default",
+        partition_by=None,
+        incremental_by=None,
+    )
+    domain = root / "dags" / "sales"
+    assert (domain / "pipeline.py").exists()
+    assert (domain / "bronze.py").exists()
+    assert (domain / "silver.py").exists()
+    assert (domain / "gold.py").exists()
+    assert (domain / "transformations" / "sales.py").exists()
+    assert (root / "soda" / "contracts" / "sales_bronze.yaml").exists()
+    assert (root / "soda" / "contracts" / "sales_silver.yaml").exists()
 
 
 def _minimal_project(tmp_path: Path) -> Path:

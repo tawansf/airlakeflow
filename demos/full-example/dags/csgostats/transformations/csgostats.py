@@ -1,4 +1,4 @@
-"""Transformação Silver para csgostats. Ajuste a lógica conforme o schema bronze/silver."""
+"""Silver transformation for csgostats. Adjust logic according to the bronze/silver schema."""
 import logging
 import os
 
@@ -21,5 +21,5 @@ def get_jdbc_url_and_properties(conn_id: str = "postgres_datawarehouse"):
 
 def run_silver_csgostats_transformation(jdbc_url: str, db_properties: dict) -> None:
     from pyspark.sql import SparkSession
-    # TODO: ler bronze.csgostats_raw, transformar, escrever em silver.csgostats
-    logger.info("Silver transformation csgostats (Spark) - implementar leitura/escrita.")
+    # TODO: read bronze.csgostats_raw, transform, write to silver.csgostats
+    logger.info("Silver transformation for csgostats (Spark) - implement read/write.")

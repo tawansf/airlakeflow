@@ -1,13 +1,17 @@
 # Data Contract - Silver {{ table_name }}
-dataset: postgres_datawarehouse/datawarehouse/silver/{{ entity_snake }}
+dataset: spark_df/__TABLE__
 
 checks:
   - row_count:
-      name: Table is not empty
+      name: "Table row count must be greater than 0"
       threshold:
         must_be_greater_than: 0
+  - schema:
+      name: "Table schema must be valid"
+      allow_extra_columns: false
+      allow_other_column_order: false
   - freshness:
-      name: Recent data
+      name: "Data must be recent (less than 48 hours old)"
       column: updated_at
       threshold:
         unit: hour

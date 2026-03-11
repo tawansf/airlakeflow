@@ -1,4 +1,4 @@
-"""Transformação Silver para vendas. Ajuste a lógica conforme o schema bronze/silver."""
+"""Silver transformation for vendas. Adjust logic according to the bronze/silver schema."""
 import logging
 import os
 
@@ -21,5 +21,5 @@ def get_jdbc_url_and_properties(conn_id: str = "postgres_datawarehouse"):
 
 def run_silver_vendas_transformation(jdbc_url: str, db_properties: dict) -> None:
     from pyspark.sql import SparkSession
-    # TODO: ler bronze.vendas_raw, transformar, escrever em silver.vendas
-    logger.info("Silver transformation vendas (Spark) - implementar leitura/escrita.")
+    # TODO: read bronze.vendas_raw, transform, write to silver.vendas
+    logger.info("Silver transformation for vendas (Spark) - implement read/write.")

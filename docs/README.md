@@ -1,7 +1,7 @@
-# Documentação AirLakeFlow
+# AirLakeFlow Documentation
 
-Documentação de uso e referência do framework.
+Usage and reference documentation for the framework.
 
-- **Uso do framework:** veja o [README principal](../README.md) na raiz do repositório (instalação, comandos, fluxo de trabalho).
-- **Exemplos:** a pasta [demos/](../demos/) contém projetos de exemplo (full-example, test-project).
-- **Código do framework:** [src/airlakeflow/](../src/airlakeflow/) (layout src para packaging).
+- **Framework usage:** see the [main README](../README.md) at the repository root (installation, commands, workflow).
+- **Examples:** the [demos/](../demos/) folder contains example projects (full-example, test-project).
+- **Framework code:** [src/airlakeflow/](../src/airlakeflow/) (src layout for packaging).

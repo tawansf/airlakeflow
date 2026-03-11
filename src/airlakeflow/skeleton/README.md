@@ -2,7 +2,7 @@
 
 Medallion-style data pipeline (Bronze / Silver / Gold) with Airflow and Soda.
 
-**The demo runs without any manual adjustment:** after `alf init` and `alf run`, run the DAGs in order (setup → seeds → demo_pipeline). All features (models, migrations, seeds, pipeline, Soda or ALF-Checks) are included.
+**This demo runs without any manual adjustment:** after `alf init` and `alf run`, run the DAGs in order (setup → seeds → demo_pipeline). All features (models, migrations, seeds, pipeline, Soda or ALF-Checks) are included.
 
 ## Structure
 

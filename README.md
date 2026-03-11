@@ -2,7 +2,7 @@
 
 Framework and CLI to build and run data pipelines using the **Medallion** pattern (Bronze → Silver → Gold) with **Apache Airflow**.
 
-**Other languages:** [Português (pt-BR)](docs/translations/README.pt-BR.md)
+**Other languages:** [Portuguese (pt-BR)](docs/translations/README.pt-BR.md)
 
 ---
 
