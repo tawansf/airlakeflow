@@ -295,7 +295,7 @@ def new_etl(
 
                 name = questionary.text("ETL name?").ask()
                 if not name or not name.strip():
-                    raise click.UsageError("ETL name is required.")
+                    raise click.UsageError("ETL name is required. Run interactively (no NAME) or pass a name: alf new etl NAME")
                 name = name.strip()
             except ImportError:
                 raise click.UsageError(
@@ -435,7 +435,8 @@ def new_migration(name: str, dag: str | None, layer: str | None, project_root: s
                 + ", ".join(layers)
             )
     if layer and layer not in layers:
-        raise click.UsageError(f"Layer must be one of: {', '.join(layers)}")
+        raise click.UsageError(f"Layer must be one of:
+        {', '.join(layers)}. Example: alf new migration NAME -d DAG -l silver")
     run_new_migration(
         name=name, dag=dag, layer=(layer or "bronze").lower(), project_root=project_root
     )
@@ -491,7 +492,7 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
             else:
                 table = table or questionary.text("Table name?").ask()
             if not table:
-                raise click.UsageError("Table is required.")
+                raise click.UsageError("Table is required. Example: alf new contract bronze my_table")
             contract_type = questionary.select(
                 "Contract type?",
                 choices=[
@@ -512,7 +513,7 @@ def new_contract(schema: str | None, table: str | None, project_root: str):
             "Example: alf new contract bronze my_table"
         )
     if schema not in layers:
-        raise click.UsageError(f"Schema (layer) must be one of: {', '.join(layers)}")
+        raise click.UsageError(f"Schema (layer) must be one of: {', '.join(layers)}. Example: alf new model NAME -l silver")
     if contract_type is None and sys.stdin.isatty():
         try:
             import questionary
@@ -585,7 +586,7 @@ def new_model(name: str, layer: str | None, partition_by: str | None, project_ro
     elif layer is None:
         layer = default_layer
     if layer and layer not in layers:
-        raise click.UsageError(f"Layer must be one of: {', '.join(layers)}")
+        raise click.UsageError(f"Layer must be one of: {', '.join(layers)}. Example: alf new model NAME -l silver")
     run_new_model(
         name=name, layer_name=layer or default_layer, project_root=root, partition_by=partition_by
     )

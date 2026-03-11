@@ -19,6 +19,7 @@ from airlakeflow.config import (
 )
 from airlakeflow.new_migration import discover_dags
 
+from airlakeflow.style import secho_fail
 
 # Minimum stub for configuration.yaml (don't overwrite if it already exists)
 def _soda_config_yaml(data_source_name: str) -> str:
@@ -215,6 +216,7 @@ def run_add_soda(
     root = Path(project_root).resolve()
     dags = discover_dags(root)
     if not dags:
+        secho_fail("No ETLs found in dags/ folder. Create one with 'alf new etl NAME'.")
         raise SystemExit(1)  # CLI message
 
     if etl_name is None and not all_etls:

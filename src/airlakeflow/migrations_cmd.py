@@ -64,12 +64,12 @@ def run_up(project_root: Path, connection_uri: str | None) -> int:
     uri = connection_uri or _get_connection_uri(root)
     if not uri:
         secho_fail(
-            "No connection URI. Set AIRFLOW_CONN_POSTGRES_DATAWAREHOUSE or migration_connection_uri in .airlakeflow.yaml"
+            "No connection URI. Set AIRFLOW_CONN_POSTGRES_DATAWAREHOUSE or migration_connection_uri in .airlakeflow.yaml. Then run 'alf migrations up'."
         )
         return 1
     migrations_dir = root / "dags" / "sql" / "migrations"
     if not migrations_dir.exists():
-        secho_fail("No dags/sql/migrations/ directory.")
+        secho_fail("No dags/sql/migrations/ directory. Create it with or run 'alf init' in a project root that was migrations.")
         return 1
     try:
         applied = apply_pending(migrations_dir, uri)
@@ -81,7 +81,7 @@ def run_up(project_root: Path, connection_uri: str | None) -> int:
             secho_info("No pending migrations.")
         return 0
     except Exception as e:
-        secho_fail(str(e))
+        secho_fail("Migration up failed: " + str(e))
         return 1
 
 
@@ -104,12 +104,12 @@ def run_down(
         return 1
     migrations_dir = root / "dags" / "sql" / "migrations"
     if not migrations_dir.exists():
-        secho_fail("No dags/sql/migrations/ directory.")
+        secho_fail("No dags/sql/migrations/ directory. Create it with or run 'alf init' in a project root that was migrations.")
         return 1
     try:
         return rollback_last(migrations_dir, uri, dry_run=dry_run, force=force)
     except Exception as e:
-        secho_fail(str(e))
+        secho_fail("Migration down failed: " + str(e))
         return 1
 
 
@@ -125,6 +125,7 @@ def run_doctor(project_root: Path, driver: str | None) -> int:
         secho_ok("Models and migrations are aligned.")
         return 0
     secho_fail("Drift detected between models and migrations:")
+    secho_info("Run 'alf migrations align' to overwrite migrations with model DDL (model is the reference).")
     for msg in issues:
         secho_info(f"  • {msg}")
     return 1
@@ -172,7 +173,7 @@ def run_align(project_root: Path, driver: str | None, force: bool = False) -> in
     try:
         updated = align_migrations_to_models(root, driver_name)
     except KeyError as e:
-        secho_fail(str(e))
+        secho_fail("Migration align failed: " + str(e))
         return 1
     if not updated:
         secho_warn("No migration was updated (no file matches the models).")

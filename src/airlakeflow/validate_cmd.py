@@ -142,7 +142,7 @@ def run_validate(
             if ok:
                 secho_ok(f"  {SYM_OK} Project structure ({desc})")
             else:
-                secho_fail(f"  {SYM_FAIL} Structure: missing " + ", ".join(missing))
+                secho_fail(f"  {SYM_FAIL} Structure: missing " + ", ".join(missing) + "Add these folders or run 'alf init' in this directory.")
         if not ok:
             all_ok = False
 
@@ -151,26 +151,16 @@ def run_validate(
             if ok2:
                 secho_ok(f"  {SYM_OK} Key files (setup_database.py, soda/configuration.yaml)")
             else:
-                secho_fail(f"  {SYM_FAIL} Missing files: " + ", ".join(missing2))
+                secho_fail(f"  {SYM_FAIL} Missing files: " + ", ".join(missing2) + "Add setup_database.py and soda/configuration.yaml files or run 'alf init' in this directory.")
         if not ok2:
             all_ok = False
-
     if runtime == "docker" and check_docker:
-        ok, msg = _docker_available()
+        ok2, msg2 = _compose_available(root)
         if verbose:
-            if ok:
-                secho_ok(f"  {SYM_OK} Docker: " + msg)
-            else:
-                secho_fail(f"  {SYM_FAIL} Docker: " + msg)
-        if not ok:
-            all_ok = False
-        else:
-            ok2, msg2 = _compose_available(root)
-            if verbose:
                 if ok2:
-                    secho_ok(f"  {SYM_OK} Docker Compose: " + msg2)
+                    secho_ok(f"  {SYM_OK} Docker Compose: " + msg2 + "Run 'alf run' to start the stack or 'alf stop' to stop the stack.")
                 else:
-                    secho_fail(f"  {SYM_FAIL} Docker Compose: " + msg2)
+                    secho_fail(f"  {SYM_FAIL} Docker Compose: " + msg2 + "Run 'alf run' to start the stack or 'alf stop' to stop the stack.")
             if not ok2:
                 all_ok = False
 
@@ -178,18 +168,18 @@ def run_validate(
         ok, msg = _compose_services_up(root)
         if verbose:
             if ok:
-                secho_ok(f"  {SYM_OK} Stack: " + msg)
+                secho_ok(f"  {SYM_OK} Stack: " + msg + "Run 'alf run' to start the stack or 'alf stop' to stop the stack.")
             else:
-                secho_fail(f"  {SYM_FAIL} Stack: " + msg)
+                secho_fail(f"  {SYM_FAIL} Stack: " + msg + "Run 'alf run' to start the stack.")
         if not ok:
             all_ok = False
 
     if verbose:
         click.echo()
         if all_ok:
-            secho_ok(f"{SYM_OK} Validation passed.")
+            secho_ok(f"{SYM_OK} Validation passed. Run 'alf run' to start the stack or 'alf stop' to stop the stack.")
         else:
             secho_fail(
-                f"{SYM_FAIL} Validation failed. Fix the items above and run 'alf validate' again."
+                f"{SYM_FAIL} Validation failed. Fix the items above and run 'alf validate' again. Run 'alf run' to start the stack or 'alf stop' to stop the stack."
             )
     return all_ok

@@ -373,11 +373,11 @@ def run_status(project_root: Path) -> int:
     """Print a short status summary (how many services up). Returns 0 if stack up, 1 otherwise."""
     root = Path(project_root).resolve()
     if get_runtime(root) == "local":
-        secho_fail("This project is configured for local run. Use: alf run")
+        secho_fail("This project is configured for local run. Use: alf run to start the stack.")
         return 1
     compose_file = root / "docker-compose.yaml"
     if not compose_file.exists():
-        secho_fail("No docker-compose.yaml in project.")
+        secho_fail("No docker-compose.yaml in project. Run 'alf init' in this directory to create it.")
         return 1
     try:
         r = subprocess.run(
@@ -388,10 +388,10 @@ def run_status(project_root: Path) -> int:
             cwd=root,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        secho_fail("Docker Compose not available or timed out.")
+        secho_fail("Docker Compose not available or timed out. Install Docker and try again.")
         return 1
     if r.returncode != 0:
-        secho_fail("Stack not running. Run: alf run")
+        secho_fail("Stack not running. Run: alf run to start the stack.")
         return 1
     import json
 
@@ -413,5 +413,5 @@ def run_status(project_root: Path) -> int:
     if up > 0:
         secho_ok(f"Stack: {up} service(s) running." + (f" {exited} exited." if exited else ""))
         return 0
-    secho_fail("Stack not running. Run: alf run")
+    secho_fail("Stack not running. Run: alf run to start the stack.")
     return 1

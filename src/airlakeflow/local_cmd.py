@@ -72,7 +72,7 @@ def run_local(project_root: Path, skip_install: bool = False) -> int:
         env=env,
     )
     if r.returncode != 0:
-        secho_fail("airflow db init failed.")
+        secho_fail("airflow db init failed. Check .venv and run: .venv/bin/airflow db init again.")
         return r.returncode
 
     secho_info("Running: airflow standalone (Ctrl+C to stop)")
@@ -87,7 +87,7 @@ def run_local(project_root: Path, skip_install: bool = False) -> int:
             ),  # new process group on Unix so we can killpg on Ctrl+C
         )
     except OSError as e:
-        secho_fail(f"Failed to start airflow standalone: {e}")
+        secho_fail(f"Failed to start airflow standalone: {e}. Check .venv and requirements.txt.")
         return 1
 
     def _terminate_standalone() -> None:

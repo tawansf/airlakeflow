@@ -38,7 +38,7 @@ def run_doctor(project_root: Path, verbose: bool = True) -> bool:
         if py_ok:
             secho_ok(f"  [OK] Python {ver.major}.{ver.minor}.{ver.micro}")
         else:
-            secho_fail(f"  [FAIL] Python {ver.major}.{ver.minor} (need 3.10+)")
+            secho_fail(f"  [FAIL] Python {ver.major}.{ver.minor} (need 3.10+). Install Python 3.10+ and try again.")
     if not py_ok:
         all_ok = False
 
@@ -59,7 +59,7 @@ def run_doctor(project_root: Path, verbose: bool = True) -> bool:
         if ok2:
             secho_ok("  [OK] Key files (setup_database.py, soda/configuration.yaml)")
         else:
-            secho_fail("  [FAIL] Missing key files: " + ", ".join(missing2))
+            secho_fail("  [FAIL] Missing key files: " + ", ".join(missing2) + "Add setup_database.py and soda/configuration.yaml files or run 'alf init' in this directory.")
     if not ok2:
         all_ok = False
 
@@ -80,7 +80,7 @@ def run_doctor(project_root: Path, verbose: bool = True) -> bool:
                 if ok2:
                     secho_ok("  [OK] Docker Compose: " + msg2)
                 else:
-                    secho_fail("  [FAIL] Docker Compose: " + msg2)
+                    secho_fail("  [FAIL] Docker Compose: " + msg2 + "Run 'alf run' to start the stack or 'alf stop' to stop the stack.")
             if not ok2:
                 all_ok = False
 
@@ -91,7 +91,7 @@ def run_doctor(project_root: Path, verbose: bool = True) -> bool:
                 if ok:
                     secho_ok("  [OK] Stack: " + msg)
                 else:
-                    secho_fail("  [FAIL] Stack: " + msg)
+                    secho_fail("  [FAIL] Stack: " + msg + "Run 'alf run' to start the stack.")
             if not ok:
                 all_ok = False
     else:
