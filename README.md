@@ -1,5 +1,9 @@
 # AirLakeFlow
 
+[![CI](https://github.com/tawansf/airlakeflow/actions/workflows/ci.yml/badge.svg)](https://github.com/tawansf/airlakeflow/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 Framework and CLI to build and run data pipelines using the **Medallion** pattern (Bronze → Silver → Gold) with **Apache Airflow**.
 
 **Other languages:** [Portuguese (pt-BR)](docs/translations/README.pt-BR.md)
@@ -13,8 +17,10 @@ Framework and CLI to build and run data pipelines using the **Medallion** patter
 - **Creates versioned SQL migrations** per layer (bronze/silver/gold).
 - **Validates** project structure and environment (Docker, required files).
 - **Runs the application** (up, stop, restart, logs) via Docker Compose.
+- **Quality:** Soda contracts or native ALF-Checks (config/checks/ + DAG).
+- **Migrations:** SQL from Python models (config/models/) with layer/partition support.
 
-All through the `**alf**` command (alias: `airlakeflow`).
+All through the **`alf`** command (alias: `airlakeflow`).
 
 ---
 
@@ -99,11 +105,11 @@ Commands are grouped in the CLI as **Project**, **Resources**, **Quality**, and 
 
 | Command | Description |
 | ------- | ----------- |
-| `alf new etl NAME` | Create an ETL pipeline (bronze, silver, gold, pipeline.py). Options: `-t` table, `-c` Soda contracts, `-g`/`-G` gold, `-s` source (api/file/jdbc/...), `--pattern` default/snapshot, `--partition-by`, `--incremental-by`. |
+| `alf new etl [NAME]` | Create an ETL pipeline (bronze, silver, gold, pipeline.py). NAME optional in interactive mode. Options: `-t` table, `-c` Soda contracts, `-g`/`-G` gold, `-s` source (api/file/jdbc/...), `--pattern` default/snapshot, `--partition-by`, `--incremental-by`. |
 | `alf new migration NAME` | Create a SQL migration (V0XX__name.sql). `-d` DAG, `-l` layer (bronze/silver/gold); prompted if omitted. |
 | `alf new contract [SCHEMA TABLE]` | Create a contract. Interactive: choose **Soda** (soda/contracts/) or **ALF-Checks** (config/checks/{schema}/{table}.yaml). Schema/table prompted if omitted. |
 | `alf new model NAME` | Create a model in config/models/ and generate its migration. `-l` layer, `--partition-by` column. |
-| `alf list` | List ETL pipelines (dags/ folders with pipeline.py). |
+| `alf list etls` | List ETL pipelines (dags/ folders with pipeline.py). |
 | `alf migrations generate` | Generate migration SQL from config/models/. `-D` driver (postgres, etc.). |
 | `alf migrations up` | Apply pending migrations. `-u` connection URI. |
 | `alf migrations down` | Rollback last migration. `-n` dry run, `-F` force. |
@@ -148,8 +154,8 @@ name/
   soda/              # Soda config and contracts
     configuration.yaml
     contracts/
-  scripts/           # Infra scripts (e.g. create DB)
-  config/, plugins/, data/, logs/
+  config/            # config/models/ (Python models), config/checks/ (ALF-Checks, after alf add alf-checks)
+  scripts/, plugins/, data/, logs/
   docker-compose.yaml
   Dockerfile
   .env.example, .env, requirements.txt
@@ -162,7 +168,7 @@ name/
 | Folder               | Contents                                                                                                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **src/airlakeflow/** | Framework code: CLI, templates, skeleton used by `alf init` ([src layout](https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/)).       |
-| **demos/**           | Example projects: full-example (complete), test-project.                                                                                                            |
+| **demos/**           | Example project: full-example (complete pipeline, Soda, monitoring).                                                                                                |
 | **docs/**            | Reference documentation (see [docs/README.md](docs/README.md)). Translations: [docs/translations/](docs/translations/).                                            |
 | **planning/**        | Planning and design docs (not end-user documentation).                                                                                                            |
 | **tests/**           | Framework tests (pytest).                                                                                                                                         |

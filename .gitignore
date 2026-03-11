@@ -217,3 +217,4 @@ derby.log
 planning/
 demos/test-seeds/
 .cursor/
+.venv/
