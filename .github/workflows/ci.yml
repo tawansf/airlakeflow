@@ -2,22 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
-  test:
+  test-and-lint:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.10, 3.11, 3.12]
+        python-version: ["3.10", "3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -29,77 +30,24 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-${{ matrix.python-version }}-
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Lint (ruff)
-        run: |
-          pip install ruff
-          ruff check src tests || true
-
-      - name: Format check (black)
-        run: |
-          pip install black
-          black --check src tests
-
-      - name: Run tests
-        run: |
-          pytest -q
-
-      - name: Security checks (bandit)
-        run: |
-          pip install "bandit[toml]"
-          bandit -r src -q || true
-
-      - name: Dependency audit (pip-audit)
-        run: |
-          pip install pip-audit
-          pip-audit --progress=off || true
-
-      - name: Build wheel
-        run: |
-          python -m pip install build
-          python -m build --wheel
-
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-
-jobs:
-  test-and-lint:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.10", "3.12"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
       - name: Install project and dev dependencies
         run: |
           python -m pip install --upgrade "pip>=25.3"
           pip install -e ".[dev]"
-
-      - name: Run tests
-        run: pytest tests/ -q
 
       - name: Lint with Ruff
         run: ruff check src tests
 
       - name: Check formatting with Black
         run: black --check src tests
+
+      - name: Run tests
+        run: pytest tests/ -q
+
+      - name: Build wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
 
   quality-and-security:
     runs-on: ubuntu-latest
@@ -118,8 +66,6 @@ jobs:
 
       - name: Audit dependencies for vulnerabilities
         run: pip-audit
-        # Without --strict so editable install (this repo) is skipped; pip>=25.3 avoids known pip CVEs
 
       - name: Security lint (Bandit)
         run: bandit -r src -c pyproject.toml -q -l
-        # -c pyproject.toml applies [tool.bandit] skips (B110, B404, B603, B607); -l = report Low+
